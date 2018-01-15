@@ -2409,8 +2409,8 @@ rep_hist_buffer_stats_add_circ(circuit_t *circ, time_t end_of_interval)
   or_circuit_t *orcirc;
   double mean_num_cells_in_queue, mean_time_cells_in_queue;
   uint32_t processed_cells;
-  uint16_t port;
-  uint8_t is_exit_data;
+  uint16_t port = 0;
+  uint8_t is_exit_data = 0;
   if (CIRCUIT_IS_ORIGIN(circ))
     return;
   orcirc = TO_OR_CIRCUIT(circ);
@@ -2433,13 +2433,20 @@ rep_hist_buffer_stats_add_circ(circuit_t *circ, time_t end_of_interval)
   orcirc->total_cell_waiting_time = 0;
   orcirc->processed_cells = 0;
 
-  connection_t* stream = TO_CONN(orcirc->n_streams);
-  port = 0;
-  if(stream){
-    port = stream->port;
-    tor_assert(!orcirc->n_streams->next_stream);  // should only run if IsolatePort is true
+  if(get_options()->MoneTorStatistics){
+    if(orcirc->n_streams){
+      connection_t* stream = TO_CONN(orcirc->n_streams);
+
+      if(stream->type == CONN_TYPE_EXIT){
+	log_info(LD_GENERAL, "hiiiiii %d\n", stream->type);
+	is_exit_data = 1;
+
+	// if only one edge_connection then register port, otherwise default to 0
+	if(orcirc->n_streams && !orcirc->n_streams->next_stream)
+	  port = stream->port;
+      }
+    }
   }
-  is_exit_data = (stream->type == CONN_TYPE_EXIT);
 
   rep_hist_add_buffer_stats(mean_num_cells_in_queue,
                             mean_time_cells_in_queue,
@@ -2590,7 +2597,7 @@ char *
 rep_hist_format_moneTor_stats(time_t now)
 {
 
-#define SHARES 50
+#define SHARES 10
 
   if (!start_of_buffer_stats_interval)
     return NULL; /* Not initialized. */
@@ -2615,23 +2622,24 @@ rep_hist_format_moneTor_stats(time_t now)
 
   // filter through exit data circuits and bucket based on port
   SMARTLIST_FOREACH_BEGIN(circuits_for_buffer_stats, circ_buffer_stats_t *, stats){
-      if(stats->is_exit_data){
-	char digest[DIGEST_LEN] = { 0 };
-	memcpy(digest, &stats->port, sizeof(stats->port));
+    if(1 || stats->is_exit_data){
+      char digest[DIGEST_LEN] = { 0 };
+      memcpy(digest, &stats->port, sizeof(stats->port));
 
-	smartlist_t* bucket;
-	if(!(bucket = digestmap_get(port_buckets, digest))){
-	  bucket = digestmap_set(port_buckets, digest, smartlist_new());
-	}
-	smartlist_add(bucket, stats);
+      smartlist_t* bucket;
+      if(!(bucket = digestmap_get(port_buckets, digest))){
+	bucket = smartlist_new();
+	digestmap_set(port_buckets, digest, bucket);
       }
+      smartlist_add(bucket, stats);
+    }
   } SMARTLIST_FOREACH_END(stats);
 
   // generate processed cell strings for each list
-  MAP_FOREACH(digestmap_, port_buckets, const char*, port_digest, smartlist_t*, circs){
+  MAP_FOREACH(digestmap_, port_buckets, const char*, port_digest, smartlist_t*, bucket){
 
     int i = 0;
-    int number_of_circuits = smartlist_len(circs);
+    int number_of_circuits = smartlist_len(bucket);
 
     uint64_t processed_cells[SHARES] = { 0 };
     uint32_t circs_in_share[SHARES] = { 0 };
@@ -2640,9 +2648,9 @@ rep_hist_format_moneTor_stats(time_t now)
     uint16_t port_number;
     memcpy(&port_number, port_digest, sizeof(port_number));
 
-    smartlist_sort(circs, buffer_stats_compare_entries_);
+    smartlist_sort(bucket, buffer_stats_compare_entries_);
 
-    SMARTLIST_FOREACH_BEGIN(circs, circ_buffer_stats_t *, stats) {
+    SMARTLIST_FOREACH_BEGIN(bucket, circ_buffer_stats_t *, stats) {
       int share = i++ * SHARES / number_of_circuits;
       processed_cells[share] += stats->processed_cells;
       circs_in_share[share]++;
@@ -2652,30 +2660,29 @@ rep_hist_format_moneTor_stats(time_t now)
     /* Write deciles to strings. */
     for (i = 0; i < SHARES; i++) {
       smartlist_add_asprintf(processed_cells_strings,
-			     U64_FORMAT, !circs_in_share[i] ? 0 :
-			     U64_PRINTF_ARG(processed_cells[i] /
-					    circs_in_share[i]));
+    			     U64_FORMAT, !circs_in_share[i] ? 0 :
+    			     U64_PRINTF_ARG(processed_cells[i] /
+    					    circs_in_share[i]));
     }
 
     /* Join all observations in single strings. */
     char* processed_cells_string = smartlist_join_strings(processed_cells_strings,
-						    ",", 0, NULL);
-    SMARTLIST_FOREACH(processed_cells_strings, char *, cp, tor_free(cp));
+    						    ",", 0, NULL);
 
     /* Put everything together. */
     char* port_string;
     tor_asprintf(&port_string,
-		 "moneTor-port-number %d\n"
-		 "moneTor-processed-cells %s\n"
-		 "moneTor-circuits-per-decile %d\n",
-		 port_number,
-		 processed_cells_string,
-		 CEIL_DIV(number_of_circuits, SHARES));
+    		 "moneTor-port-number %d\n"
+    		 "moneTor-processed-cells %s\n"
+    		 "moneTor-circuits-per-decile %d\n",
+    		 port_number,
+    		 processed_cells_string,
+    		 CEIL_DIV(number_of_circuits, SHARES));
     smartlist_add(output_strings, port_string);
 
     SMARTLIST_FOREACH(processed_cells_strings, char *, cp, tor_free(cp));
     smartlist_free(processed_cells_strings);
-    smartlist_free(circs);
+    smartlist_free(bucket);
     tor_free(processed_cells_string);
 
   } MAP_FOREACH_END;
@@ -2721,7 +2728,9 @@ rep_hist_buffer_stats_write(time_t now)
   /* Try to write to disk. */
   if (!check_or_create_data_subdir("stats")) {
     write_to_data_subdir("stats", "buffer-stats", buffer_str, "buffer statistics");
-    write_to_data_subdir("stats", "moneTor-stats", moneTor_str, "moneTor statistics");
+
+    if(get_options()->MoneTorStatistics)
+      write_to_data_subdir("stats", "moneTor-stats", moneTor_str, "moneTor statistics");
   }
 
  done:

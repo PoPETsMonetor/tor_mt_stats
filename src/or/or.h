@@ -4184,6 +4184,9 @@ typedef struct {
   /** If true, the user wants us to collect cell statistics. */
   int CellStatistics;
 
+  /** If true, the user wants us to collect moneTor statistics. */
+  int MoneTorStatistics;
+
   /** If true, the user wants us to collect padding statistics. */
   int PaddingStatistics;
 
@@ -5132,7 +5135,7 @@ typedef enum {
 //#define WRITE_STATS_INTERVAL (24*60*60)
 
 // XXX moneTor change for chutney testing purposes
-#define WRITE_STATS_INTERVAL 5
+#define WRITE_STATS_INTERVAL 60
 
 /********************************* microdesc.c *************************/
 
