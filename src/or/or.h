@@ -5135,7 +5135,7 @@ typedef enum {
 //#define WRITE_STATS_INTERVAL (24*60*60)
 
 // XXX moneTor change for chutney testing purposes
-#define WRITE_STATS_INTERVAL 60
+#define WRITE_STATS_INTERVAL 10
 
 /********************************* microdesc.c *************************/
 

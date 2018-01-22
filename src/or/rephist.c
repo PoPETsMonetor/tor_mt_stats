@@ -2622,7 +2622,7 @@ rep_hist_format_moneTor_stats(time_t now)
 
   // filter through exit data circuits and bucket based on port
   SMARTLIST_FOREACH_BEGIN(circuits_for_buffer_stats, circ_buffer_stats_t *, stats){
-    if(1 || stats->is_exit_data){
+    if(stats->is_exit_data){
       char digest[DIGEST_LEN] = { 0 };
       memcpy(digest, &stats->port, sizeof(stats->port));
 
@@ -2720,7 +2720,8 @@ rep_hist_buffer_stats_write(time_t now)
 
   /* Generate history string. */
   buffer_str = rep_hist_format_buffer_stats(now);
-  moneTor_str = rep_hist_format_moneTor_stats(now);
+  if(get_options()->MoneTorStatistics)
+    moneTor_str = rep_hist_format_moneTor_stats(now);
 
   /* Reset both buffer history and counters of open circuits. */
   rep_hist_reset_buffer_stats(now);
@@ -2728,14 +2729,14 @@ rep_hist_buffer_stats_write(time_t now)
   /* Try to write to disk. */
   if (!check_or_create_data_subdir("stats")) {
     write_to_data_subdir("stats", "buffer-stats", buffer_str, "buffer statistics");
-
     if(get_options()->MoneTorStatistics)
       write_to_data_subdir("stats", "moneTor-stats", moneTor_str, "moneTor statistics");
   }
 
  done:
   tor_free(buffer_str);
-  tor_free(moneTor_str);
+  if(get_options()->MoneTorStatistics)
+    tor_free(moneTor_str);
   return start_of_buffer_stats_interval + WRITE_STATS_INTERVAL;
 }
 
