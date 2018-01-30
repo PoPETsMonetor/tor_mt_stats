@@ -3545,6 +3545,21 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
   /* send it off to the gethostbyname farm */
   switch (dns_resolve(n_stream)) {
     case 1: /* resolve worked; now n_stream is attached to circ. */
+
+      /************************* moneTor stats ***************************/
+
+      /** declare moneTor statistic fields */
+      or_circ->mt_stats.is_collectable = 1;
+      or_circ->mt_stats.start_time = time(NULL);
+      or_circ->mt_stats.time_buckets = smartlist_new();
+
+      /** make sure there is only one port in use and record it */
+      tor_assert(n_stream == or_circ->n_streams && !n_stream->next_stream);
+      connection_t* stream = TO_CONN(n_stream);
+      or_circ->mt_stats.port = stream->port;
+
+      /*******************************************************************/
+
       assert_circuit_ok(circ);
       log_debug(LD_EXIT,"about to call connection_exit_connect().");
       connection_exit_connect(n_stream);
@@ -4162,4 +4177,3 @@ connection_edge_free_all(void)
   smartlist_free(pending_entry_connections);
   pending_entry_connections = NULL;
 }
-

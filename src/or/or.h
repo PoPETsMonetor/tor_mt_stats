@@ -794,6 +794,41 @@ typedef enum {
  * rendezvous point. */
 #define REND_COOKIE_LEN DIGEST_LEN
 
+/************************* moneTor stats ***************************/
+
+/** Time in seconds to bucketize cell counts */
+#define MT_TIME_BUCKET 30
+
+/** Probability (%) that we collect moneTor statistics for a given exit
+    circuit */
+#define MT_COLLECT_PROB 1
+
+/* List of processed cell counts in each bucket of time MT_TIME_BUCKET */
+typedef struct {
+
+  /** Flag to determine whether we are collecting moneTor statistics. 1 means
+      yes, 0 means no.*/
+  int is_collectable;
+
+  /** total number of cells in a circuit (should be equal to processed_cells */
+  uint32_t total_cells;
+
+  /** time at the beginning of stat collection */
+  time_t start_time;
+
+  /** total lifetime of the circuit */
+  time_t end_time;
+
+  /** number of cells in each time interval of time MT_TIME_BUCKET */
+  smartlist_t* time_buckets;
+
+  /** port number of the circuit exit connection */
+  uint16_t port;
+
+} mt_stats_t;
+
+/*******************************************************************/
+
 /** Client authorization type that a hidden service performs. */
 typedef enum rend_auth_type_t {
   REND_NO_AUTH      = 0,
@@ -3409,6 +3444,7 @@ struct onion_queue_t;
 /** An or_circuit_t holds information needed to implement a circuit at an
  * OR. */
 typedef struct or_circuit_t {
+
   circuit_t base_;
 
   /** Next circuit in the doubly-linked ring of circuits waiting to add
@@ -3491,6 +3527,10 @@ typedef struct or_circuit_t {
    * to zero, it is initialized to the default value.
    */
   uint32_t max_middle_cells;
+
+  /** data structure for recording moneTor statistics collection */
+  mt_stats_t mt_stats;
+
 } or_circuit_t;
 
 #if REND_COOKIE_LEN != DIGEST_LEN
@@ -5132,10 +5172,7 @@ typedef enum {
   DIRREQ_CHANNEL_BUFFER_FLUSHED = 4
 } dirreq_state_t;
 
-//#define WRITE_STATS_INTERVAL (24*60*60)
-
-// XXX moneTor change for chutney testing purposes
-#define WRITE_STATS_INTERVAL 10
+#define WRITE_STATS_INTERVAL (24*60*60)
 
 /********************************* microdesc.c *************************/
 

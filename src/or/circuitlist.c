@@ -1861,6 +1861,11 @@ MOCK_IMPL(void,
 circuit_mark_for_close_, (circuit_t *circ, int reason, int line,
                           const char *file))
 {
+
+  /************************* moneTor stats ***************************/
+  // record
+  /*******************************************************************/
+
   int orig_reason = reason; /* Passed to the controller */
   assert_circuit_ok(circ);
   tor_assert(line);
@@ -2555,4 +2560,3 @@ assert_circuit_ok(const circuit_t *c)
     tor_assert(!or_circ || !or_circ->rend_splice);
   }
 }
-

@@ -2433,6 +2433,7 @@ do_hup(void)
 int
 do_main_loop(void)
 {
+
   time_t now;
 
   /* initialize the periodic events first, so that code that depends on the
@@ -3810,4 +3811,3 @@ tor_main(int argc, char *argv[])
   tor_cleanup();
   return result;
 }
-

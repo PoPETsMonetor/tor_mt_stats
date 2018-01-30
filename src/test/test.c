@@ -1086,14 +1086,14 @@ test_stats(void *arg)
 
   /* Continue with testing buffer statistics; we shouldn't collect buffer
    * stats without initializing them. */
-  rep_hist_add_buffer_stats(2.0, 2.0, 20, 0, 0);
+  rep_hist_add_buffer_stats(2.0, 2.0, 20);
   s = rep_hist_format_buffer_stats(now + 86400);
   tt_ptr_op(s, OP_EQ, NULL);
 
   /* Initialize stats, add statistics for a single circuit, and generate
    * the history string. */
   rep_hist_buffer_stats_init(now);
-  rep_hist_add_buffer_stats(2.0, 2.0, 20, 0, 0);
+  rep_hist_add_buffer_stats(2.0, 2.0, 20);
   s = rep_hist_format_buffer_stats(now + 86400);
   tt_str_op("cell-stats-end 2010-08-12 13:27:30 (86400 s)\n"
              "cell-processed-cells 20,0,0,0,0,0,0,0,0,0\n"
@@ -1106,9 +1106,9 @@ test_stats(void *arg)
   /* Add nineteen more circuit statistics to the one that's already in the
    * history to see that the math works correctly. */
   for (i = 21; i < 30; i++)
-    rep_hist_add_buffer_stats(2.0, 2.0, i, 0, 0);
+    rep_hist_add_buffer_stats(2.0, 2.0, i);
   for (i = 20; i < 30; i++)
-    rep_hist_add_buffer_stats(3.5, 3.5, i, 0, 0);
+    rep_hist_add_buffer_stats(3.5, 3.5, i);
   s = rep_hist_format_buffer_stats(now + 86400);
   tt_str_op("cell-stats-end 2010-08-12 13:27:30 (86400 s)\n"
              "cell-processed-cells 29,28,27,26,25,24,23,22,21,20\n"
@@ -1121,14 +1121,14 @@ test_stats(void *arg)
   /* Stop collecting stats, add statistics for one circuit, and ensure we
    * don't generate a history string. */
   rep_hist_buffer_stats_term();
-  rep_hist_add_buffer_stats(2.0, 2.0, 20, 0, 0);
+  rep_hist_add_buffer_stats(2.0, 2.0, 20);
   s = rep_hist_format_buffer_stats(now + 86400);
   tt_ptr_op(s, OP_EQ, NULL);
 
   /* Re-start stats, add statistics for one circuit, reset stats, and make
    * sure that the history has all zeros. */
   rep_hist_buffer_stats_init(now);
-  rep_hist_add_buffer_stats(2.0, 2.0, 20, 0, 0);
+  rep_hist_add_buffer_stats(2.0, 2.0, 20);
   rep_hist_reset_buffer_stats(now);
   s = rep_hist_format_buffer_stats(now + 86400);
   tt_str_op("cell-stats-end 2010-08-12 13:27:30 (86400 s)\n"
@@ -1244,3 +1244,4 @@ struct testgroup_t testgroups[] = {
   { "dns/", dns_tests },
   END_OF_GROUPS
 };
+
