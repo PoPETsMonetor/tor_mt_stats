@@ -64,6 +64,7 @@
 #include "geoip.h"
 #include "hs_cache.h"
 #include "main.h"
+#include "mt_stats.h"
 #include "networkstatus.h"
 #include "nodelist.h"
 #include "onion.h"
@@ -2799,30 +2800,7 @@ channel_flush_from_first_active_circuit, (channel_t *chan, int max))
         or_circ->processed_cells++;
       }
 
-      /************************* moneTor stats ***************************/
-
-
-      if(get_options()->MoneTorStatistics && !CIRCUIT_IS_ORIGIN(circ) &&
-	 TO_OR_CIRCUIT(circ)->mt_stats.is_collectable){
-
-	mt_stats_t* stats = &TO_OR_CIRCUIT(circ)->mt_stats;
-
-	// increment total cell count
-	stats->total_cells++;
-
-	// add new time buckets if enough time has passed
-	time_t time_diff = time(NULL) - stats->start_time;
-	int num_buckets = smartlist_len(stats->time_buckets);
-	int exp_buckets = (time_diff + MT_TIME_BUCKET - 1) / MT_TIME_BUCKET;
-	for(int i = 0; i < exp_buckets - num_buckets; i++)
-	  smartlist_add(stats->time_buckets, tor_calloc(1, sizeof(int)));
-
-	// increment the cell count in the latest time bucket
-	int* cur_bucket = smartlist_get(stats->time_buckets, exp_buckets -1);
-	(*cur_bucket)++;
-      }
-
-      /*******************************************************************/
+      mt_stats_increment(circ);
 
       if (get_options()->TestingEnableCellStatsEvent) {
         uint8_t command = packed_cell_get_command(cell, chan->wide_circ_ids);

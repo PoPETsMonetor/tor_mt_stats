@@ -66,6 +66,7 @@ LIBTOR_A_SOURCES = \
 	src/or/hs_service.c				\
 	src/or/keypin.c					\
 	src/or/main.c					\
+	src/or/mt_stats.c                               \
 	src/or/microdesc.c				\
 	src/or/networkstatus.c				\
 	src/or/nodelist.c				\
@@ -204,6 +205,7 @@ ORHEADERS = \
 	src/or/hs_service.h				\
 	src/or/keypin.h					\
 	src/or/main.h					\
+	src/or/mt_stats.h                               \
 	src/or/microdesc.h				\
 	src/or/networkstatus.h				\
 	src/or/nodelist.h				\

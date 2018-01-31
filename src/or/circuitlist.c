@@ -65,6 +65,7 @@
 #include "control.h"
 #include "entrynodes.h"
 #include "main.h"
+#include "mt_stats.h"
 #include "hs_circuit.h"
 #include "hs_circuitmap.h"
 #include "hs_common.h"
@@ -1861,11 +1862,6 @@ MOCK_IMPL(void,
 circuit_mark_for_close_, (circuit_t *circ, int reason, int line,
                           const char *file))
 {
-
-  /************************* moneTor stats ***************************/
-  // record
-  /*******************************************************************/
-
   int orig_reason = reason; /* Passed to the controller */
   assert_circuit_ok(circ);
   tor_assert(line);
@@ -1933,9 +1929,11 @@ circuit_mark_for_close_, (circuit_t *circ, int reason, int line,
            CIRCUIT_IS_ORIGIN(circ) ?
               TO_ORIGIN_CIRCUIT(circ)->global_identifier : 0,
            file, line, orig_reason, reason);
+
+  mt_stats_record(circ);
 }
 
-/** Called immediately before freeing a marked circuit <b>circ</b> from
+/** stats immediately before freeing a marked circuit <b>circ</b> from
  * circuit_free_all() while shutting down Tor; this is a safe-at-shutdown
  * version of circuit_about_to_free().  It's important that it at least
  * do circuitmux_detach_circuit() when appropriate.

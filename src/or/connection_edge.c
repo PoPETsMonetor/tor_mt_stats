@@ -70,6 +70,7 @@
 #include "connection_edge.h"
 #include "connection_or.h"
 #include "control.h"
+#include "crypto.h"
 #include "dns.h"
 #include "dnsserv.h"
 #include "directory.h"
@@ -80,6 +81,7 @@
 #include "hs_client.h"
 #include "hs_circuit.h"
 #include "main.h"
+#include "mt_stats.h"
 #include "networkstatus.h"
 #include "nodelist.h"
 #include "policies.h"
@@ -3546,19 +3548,7 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
   switch (dns_resolve(n_stream)) {
     case 1: /* resolve worked; now n_stream is attached to circ. */
 
-      /************************* moneTor stats ***************************/
-
-      /** declare moneTor statistic fields */
-      or_circ->mt_stats.is_collectable = 1;
-      or_circ->mt_stats.start_time = time(NULL);
-      or_circ->mt_stats.time_buckets = smartlist_new();
-
-      /** make sure there is only one port in use and record it */
-      tor_assert(n_stream == or_circ->n_streams && !n_stream->next_stream);
-      connection_t* stream = TO_CONN(n_stream);
-      or_circ->mt_stats.port = stream->port;
-
-      /*******************************************************************/
+      mt_stats_init(circ);
 
       assert_circuit_ok(circ);
       log_debug(LD_EXIT,"about to call connection_exit_connect().");

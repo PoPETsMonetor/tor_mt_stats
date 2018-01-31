@@ -794,7 +794,7 @@ typedef enum {
  * rendezvous point. */
 #define REND_COOKIE_LEN DIGEST_LEN
 
-/************************* moneTor stats ***************************/
+/************************ moneTor stats ****************************/
 
 /** Time in seconds to bucketize cell counts */
 #define MT_TIME_BUCKET 30
