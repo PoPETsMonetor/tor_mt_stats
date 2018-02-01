@@ -1209,6 +1209,7 @@ struct testgroup_t testgroups[] = {
   { "introduce/", introduce_tests },
   { "keypin/", keypin_tests },
   { "link-handshake/", link_handshake_tests },
+  { "mt_stats/", mt_stats_tests },
   { "nodelist/", nodelist_tests },
   { "oom/", oom_tests },
   { "oos/", oos_tests },
@@ -1244,4 +1245,3 @@ struct testgroup_t testgroups[] = {
   { "dns/", dns_tests },
   END_OF_GROUPS
 };
-

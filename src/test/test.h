@@ -220,6 +220,7 @@ extern struct testcase_t keypin_tests[];
 extern struct testcase_t link_handshake_tests[];
 extern struct testcase_t logging_tests[];
 extern struct testcase_t microdesc_tests[];
+extern struct testcase_t mt_stats_tests[];
 extern struct testcase_t nodelist_tests[];
 extern struct testcase_t oom_tests[];
 extern struct testcase_t oos_tests[];
@@ -272,4 +273,3 @@ extern const char AUTHORITY_SIGNKEY_C_DIGEST[];
 extern const char AUTHORITY_SIGNKEY_C_DIGEST256[];
 
 #endif /* !defined(TOR_TEST_H) */
-

@@ -797,13 +797,13 @@ typedef enum {
 /************************ moneTor stats ****************************/
 
 /** Time in seconds to bucketize cell counts */
-#define MT_TIME_BUCKET 30
+#define MT_BUCKET_TIME 60
 
 /** Probability (%) that we collect moneTor statistics for a given exit
     circuit */
 #define MT_COLLECT_PROB 1
 
-/* List of processed cell counts in each bucket of time MT_TIME_BUCKET */
+/* List of processed cell counts in each bucket of time MT_BUCKET_TIME */
 typedef struct {
 
   /** Flag to determine whether we are collecting moneTor statistics. 1 means
@@ -819,7 +819,7 @@ typedef struct {
   /** total lifetime of the circuit */
   time_t end_time;
 
-  /** number of cells in each time interval of time MT_TIME_BUCKET */
+  /** number of cells in each time interval of time MT_BUCKET_TIME */
   smartlist_t* time_buckets;
 
   /** port number of the circuit exit connection */
