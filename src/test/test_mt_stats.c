@@ -32,7 +32,7 @@ static void test_mt_stats(void *arg)
   /****************** Setup Fake Tor Stuff *****************/
 
   or_options_t* options = (or_options_t*)get_options();
-  options->MoneTorStatistics = 1;
+  options->moneTorStatistics = 1;
   current_time = 1000;
 
   circuit_t* circs[NUM_CIRCS];
@@ -96,7 +96,6 @@ static void test_mt_stats(void *arg)
   for(int i = NUM_CIRCS / 4; i < NUM_CIRCS; i++){
     mt_stats_record(circs[i]);
   }
-
 
  done:;
 

@@ -253,7 +253,7 @@ static config_var_t option_vars_[] = {
   V(BridgeRelay,                 BOOL,     "0"),
   V(BridgeDistribution,          STRING,   NULL),
   V(CellStatistics,              BOOL,     "0"),
-  V(MoneTorStatistics,           BOOL,     "0"),
+  V(moneTorStatistics,           BOOL,     "0"),
   V(PaddingStatistics,           BOOL,     "1"),
   V(LearnCircuitBuildTimeout,    BOOL,     "1"),
   V(CircuitBuildTimeout,         INTERVAL, "0"),
@@ -3117,7 +3117,7 @@ options_validate(or_options_t *old_options, or_options_t *options,
   tor_assert(msg);
   *msg = NULL;
 
-  if (options->MoneTorStatistics && !options->CellStatistics)
+  if (options->moneTorStatistics && !options->CellStatistics)
     REJECT("Cannot collect moneTor statistics if cell statistics is not set");
 
   if (parse_ports(options, 1, msg, &n_ports,

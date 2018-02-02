@@ -558,6 +558,8 @@ connected_cell_format_payload(uint8_t *payload_out,
 int
 connection_edge_finished_connecting(edge_connection_t *edge_conn)
 {
+  log_info(LD_GENERAL, "hiiiii connection_edge_finished_connecting\n");
+
   connection_t *conn;
 
   tor_assert(edge_conn);
@@ -3382,6 +3384,9 @@ handle_hs_exit_conn(circuit_t *circ, edge_connection_t *conn)
 int
 connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
 {
+
+  log_info(LD_GENERAL, "hiiiii connection_exit_begin_conn\n");
+
   edge_connection_t *n_stream;
   relay_header_t rh;
   char *address = NULL;
@@ -3496,6 +3501,9 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
   }
 
   log_debug(LD_EXIT,"Creating new exit connection.");
+
+  /****************************************************************/
+
   /* The 'AF_INET' here is temporary; we might need to change it later in
    * connection_exit_connect(). */
   n_stream = edge_connection_new(CONN_TYPE_EXIT, AF_INET);
@@ -3511,6 +3519,7 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
   /* leave n_stream->s at -1, because it's not yet valid */
   n_stream->package_window = STREAMWINDOW_START;
   n_stream->deliver_window = STREAMWINDOW_START;
+  log_info(LD_GENERAL, "got here 0\n");
 
   if (circ->purpose == CIRCUIT_PURPOSE_S_REND_JOINED) {
     tor_free(address);
@@ -3522,6 +3531,7 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
   n_stream->base_.address = address;
   n_stream->base_.state = EXIT_CONN_STATE_RESOLVEFAILED;
   /* default to failed, change in dns_resolve if it turns out not to fail */
+  log_info(LD_GENERAL, "got here 1\n");
 
   if (we_are_hibernating()) {
     relay_send_end_cell_from_edge(rh.stream_id, circ,
@@ -3531,6 +3541,7 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
   }
 
   n_stream->on_circuit = circ;
+  log_info(LD_GENERAL, "got here 2\n");
 
   if (rh.command == RELAY_COMMAND_BEGIN_DIR) {
     tor_addr_t tmp_addr;
@@ -3541,6 +3552,7 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
     }
     return connection_exit_connect_dir(n_stream);
   }
+  log_info(LD_GENERAL, "got here 3\n");
 
   log_debug(LD_EXIT,"about to start the dns_resolve().");
 
@@ -3548,21 +3560,26 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
   switch (dns_resolve(n_stream)) {
     case 1: /* resolve worked; now n_stream is attached to circ. */
 
-      mt_stats_init(circ);
-
+      log_info(LD_GENERAL, "dns case 1\n");
       assert_circuit_ok(circ);
       log_debug(LD_EXIT,"about to call connection_exit_connect().");
       connection_exit_connect(n_stream);
       return 0;
     case -1: /* resolve failed */
+      log_info(LD_GENERAL, "dns case -1\n");
       relay_send_end_cell_from_edge(rh.stream_id, circ,
                                     END_STREAM_REASON_RESOLVEFAILED, NULL);
       /* n_stream got freed. don't touch it. */
       break;
     case 0: /* resolve added to pending list */
+      log_info(LD_GENERAL, "dns case 0\n");
       assert_circuit_ok(circ);
       break;
   }
+
+  /****************************************************************/
+
+
   return 0;
 }
 
@@ -3574,6 +3591,8 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
 int
 connection_exit_begin_resolve(cell_t *cell, or_circuit_t *circ)
 {
+  log_info(LD_GENERAL, "hiiiii connection_exit_begin_resolve\n");
+
   edge_connection_t *dummy_conn;
   relay_header_t rh;
 
@@ -3644,6 +3663,9 @@ my_exit_policy_rejects(const tor_addr_t *addr,
 void
 connection_exit_connect(edge_connection_t *edge_conn)
 {
+  log_info(LD_GENERAL, "hiiiii connection_exit_connect\n");
+
+
   const tor_addr_t *addr;
   uint16_t port;
   connection_t *conn = TO_CONN(edge_conn);

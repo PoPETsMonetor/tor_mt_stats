@@ -4225,7 +4225,7 @@ typedef struct {
   int CellStatistics;
 
   /** If true, the user wants us to collect moneTor statistics. */
-  int MoneTorStatistics;
+  int moneTorStatistics;
 
   /** If true, the user wants us to collect padding statistics. */
   int PaddingStatistics;

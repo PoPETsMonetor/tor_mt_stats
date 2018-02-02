@@ -13,10 +13,12 @@ static int batch_counter;
 static time_t last_batch;
 
 void mt_stats_init(circuit_t* circ){
+  log_info(LD_GENERAL, "mt_stats_init\n");
 
   or_circuit_t* or_circ = TO_OR_CIRCUIT(circ);
 
-  if(crypto_rand_int(100) < MT_COLLECT_PROB){
+  if(get_options()->moneTorStatistics && crypto_rand_int(100) < MT_COLLECT_PROB){
+    log_info(LD_GENERAL, "mt_stats_init internal\n");
     or_circ->mt_stats.is_collectable = 1;
     or_circ->mt_stats.start_time = mt_time();
     or_circ->mt_stats.time_buckets = smartlist_new();
@@ -29,9 +31,11 @@ void mt_stats_init(circuit_t* circ){
 }
 
 void mt_stats_increment(circuit_t* circ){
+  log_info(LD_GENERAL, "mt_stats_increment\n");
 
-  if(get_options()->MoneTorStatistics && !CIRCUIT_IS_ORIGIN(circ) &&
+  if(get_options()->moneTorStatistics && !CIRCUIT_IS_ORIGIN(circ) &&
      TO_OR_CIRCUIT(circ)->mt_stats.is_collectable){
+    log_info(LD_GENERAL, "mt_stats_increment internal\n");
 
     mt_stats_t* stats = &TO_OR_CIRCUIT(circ)->mt_stats;
 
@@ -52,9 +56,11 @@ void mt_stats_increment(circuit_t* circ){
 }
 
 void mt_stats_record(circuit_t* circ){
+  log_info(LD_GENERAL, "mt_stats_record\n");
 
-  if(get_options()->MoneTorStatistics && !CIRCUIT_IS_ORIGIN(circ) &&
+  if(get_options()->moneTorStatistics && !CIRCUIT_IS_ORIGIN(circ) &&
      TO_OR_CIRCUIT(circ)->mt_stats.is_collectable){
+    log_info(LD_GENERAL, "mt_stats_record internal\n");
 
     mt_stats_t* stats = &TO_OR_CIRCUIT(circ)->mt_stats;
 
