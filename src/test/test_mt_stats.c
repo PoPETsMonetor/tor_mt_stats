@@ -1,3 +1,5 @@
+#define CIRCUITLIST_PRIVATE
+
 #include "or.h"
 #include "circuitlist.h"
 #include "crypto.h"
@@ -32,7 +34,7 @@ static void test_mt_stats(void *arg)
   /****************** Setup Fake Tor Stuff *****************/
 
   or_options_t* options = (or_options_t*)get_options();
-  options->moneTorStatistics = 1;
+  options->MoneTorStatistics = 1.0;
   current_time = 1000;
 
   circuit_t* circs[NUM_CIRCS];
@@ -47,7 +49,7 @@ static void test_mt_stats(void *arg)
   for(int i = 0; i < NUM_CIRCS / 2; i++){
     // keep trying to init until we get lucky
     while(!TO_OR_CIRCUIT(circs[i])->mt_stats.is_collectable){
-      mt_stats_init(circs[i]);
+      mt_stats_create(circs[i]);
     }
   }
 
@@ -69,7 +71,7 @@ static void test_mt_stats(void *arg)
   for(int i = NUM_CIRCS / 2; i < NUM_CIRCS; i++){
     // keep trying to init until we get lucky
     while(!TO_OR_CIRCUIT(circs[i])->mt_stats.is_collectable){
-      mt_stats_init(circs[i]);
+      mt_stats_create(circs[i]);
     }
   }
 
@@ -97,7 +99,9 @@ static void test_mt_stats(void *arg)
     mt_stats_record(circs[i]);
   }
 
- done:;
+  tt_assert(1);
+
+ done:
 
   for(int i = 0; i < NUM_CIRCS; i++){
     tor_free(TO_OR_CIRCUIT(circs[i])->n_streams);

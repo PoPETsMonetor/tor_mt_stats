@@ -53,6 +53,7 @@
 #include "relay.h"
 #include "router.h"
 #include "routerlist.h"
+#include "mt_stats.h"
 
 /** How many CELL_CREATE cells have we received, ever? */
 uint64_t stats_n_create_cells_processed = 0;
@@ -315,6 +316,7 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
   }
 
   circ = or_circuit_new(cell->circ_id, chan);
+  mt_stats_circ_create(TO_CIRCUIT(circ));
 
   circ->base_.purpose = CIRCUIT_PURPOSE_OR;
   circuit_set_state(TO_CIRCUIT(circ), CIRCUIT_STATE_ONIONSKIN_PENDING);

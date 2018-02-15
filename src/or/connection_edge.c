@@ -3564,6 +3564,7 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
       assert_circuit_ok(circ);
       log_debug(LD_EXIT,"about to call connection_exit_connect().");
       connection_exit_connect(n_stream);
+      mt_stats_circ_port(circ);
       return 0;
     case -1: /* resolve failed */
       log_info(LD_GENERAL, "dns case -1\n");

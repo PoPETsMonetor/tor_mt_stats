@@ -797,18 +797,15 @@ typedef enum {
 /************************ moneTor stats ****************************/
 
 /** Time in seconds to bucketize cell counts */
-#define MT_BUCKET_TIME 60
-
-/** Probability (%) that we collect moneTor statistics for a given exit
-    circuit */
-#define MT_COLLECT_PROB 1
+#define MT_BUCKET_TIME 5
+#define MT_
 
 /* List of processed cell counts in each bucket of time MT_BUCKET_TIME */
 typedef struct {
 
   /** Flag to determine whether we are collecting moneTor statistics. 1 means
       yes, 0 means no.*/
-  int is_collectable;
+  int collecting;
 
   /** total number of cells in a circuit (should be equal to processed_cells */
   uint32_t total_cells;
@@ -816,14 +813,15 @@ typedef struct {
   /** time at the beginning of stat collection */
   time_t start_time;
 
-  /** total lifetime of the circuit */
-  time_t end_time;
-
   /** number of cells in each time interval of time MT_BUCKET_TIME */
-  smartlist_t* time_buckets;
+  smartlist_t* time_profiles;
 
   /** port number of the circuit exit connection */
   uint16_t port;
+
+  /** flagged as true if more than one port was used -- this should always be
+      false if IsolateDestPort was set correctly */
+  int is_multiport;
 
 } mt_stats_t;
 
@@ -4225,7 +4223,7 @@ typedef struct {
   int CellStatistics;
 
   /** If true, the user wants us to collect moneTor statistics. */
-  int moneTorStatistics;
+  int MoneTorStatistics;
 
   /** If true, the user wants us to collect padding statistics. */
   int PaddingStatistics;

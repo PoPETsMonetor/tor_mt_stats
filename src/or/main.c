@@ -2457,6 +2457,7 @@ do_main_loop(void)
   handle_signals(1);
   monotime_init();
   timers_initialize();
+  mt_stats_init();
 
   /* load the private keys, if we're supposed to have them, and set up the
    * TLS context. */
@@ -2656,6 +2657,8 @@ run_main_loop_once(void)
       return 1;
     }
   }
+
+  mt_stats_dump();
 
   /* And here is where we put callbacks that happen "every time the event loop
    * runs."  They must be very fast, or else the whole Tor process will get

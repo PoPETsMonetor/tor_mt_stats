@@ -89,4 +89,3 @@ STATIC uint32_t circuit_max_queued_item_age(const circuit_t *c, uint32_t now);
 #endif /* defined(CIRCUITLIST_PRIVATE) */
 
 #endif /* !defined(TOR_CIRCUITLIST_H) */
-
