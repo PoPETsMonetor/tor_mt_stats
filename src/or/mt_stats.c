@@ -1,3 +1,38 @@
+/**
+ * \file mt_stats.c
+ *
+ * \brief Implement logic for recording statistics relevant for
+ *    the moneTor payment project.
+ *
+ * This module hooks onto various parts of the the Tor codebase in order to
+ * record relevant statistics that will be used for analysis in designing the
+ * core moneTor protocols. The statistics collected are on a per-port-group
+ * basis and written to the disk whenver a sufficient number of circuits have
+ * been recorded for anonymity purposes. The following three types of statistics
+ * are collected:
+ *
+ * <ul>
+ *   <li> Time Profiles - Number of cells processed in each time interval from
+ *        the circuit start time; aggregated over circuits by simple addition
+ *   <li> Total Counts - Total number of cells processed by a circuit; aggregated
+ *        by sorting and taking the mean of fixed-size nearest neighbor buckets
+ *   <li> Time Stdevs - Standard deviation across the time profiles of individual
+ *        circuits; aggregated by sorting and taking the mean of fixed-size
+ *        nearest neighbor buckets
+ * </ul>
+ *
+ * Tor codebase hooks are located in the following modules:
+ *
+ * <ul>
+ *   <li> <b>mt_stats_init()</b> <--- <b>main.c</b>
+ *   <li> <b>mt_stats_circ_create()</b> <--- <b>command.c</b>
+ *   <li> <b>mt_stats_circ_port()</b> <--- <b>connection_edge.c</b>
+ *   <li> <b>mt_stats_circ_increment()</b> <--- <b>relay.c</b>
+ *   <li> <b>mt_stats_circ_record()</b> <--- <b>circuitlist.c</b>
+ *   <li> <b>mt_stats_circ_dump()</b> <--- <b>main.c</b>
+ * </ul>
+ */
+
 #include <stdlib.h>
 #include <math.h>
 
@@ -27,19 +62,10 @@
  * entry_t struct
  */
 typedef struct {
-
-  // number of circuits collected in this session
   int num_circuits;
-
-  // list of total number of cells processed at each time interval
   smartlist_t* time_profiles;
-
-  // array of each circuit's total cell count
   int total_counts[BUCKET_SIZE * BUCKET_NUM];
-
-  // array of standard deviation in each circuit's time profiles
   double time_stdevs[BUCKET_SIZE * BUCKET_NUM];
-
 } data_t;
 
 // helper functions
