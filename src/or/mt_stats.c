@@ -1,4 +1,6 @@
-#include "math.h"
+#include <stdlib.h>
+#include <math.h>
+
 #include "or.h"
 #include "crypto.h"
 #include "container.h"
@@ -7,73 +9,61 @@
 
 #pragma GCC diagnostic ignored "-Wstack-protector"
 
-#define MAX_UINT_STRING "4294967295"
-
-// general use parameters used to define scale in the bucketing funciton
-#define COUNT_PARAM 100
-#define STDEV_PARAM 100
+#define BUCKET_SIZE 50
+#define BUCKET_NUM 50
 
 /**
  * Track one set of data for each of these port groups
  */
-typedef enum {
-  PORT_GROUP_WEB,
-  PORT_GROUP_LOW,
-  PORT_GROUP_OTHER,
-} port_group_t;
+#define NUM_PORT_GROUPS 3
+#define PORT_GROUP_OTHER 0
+#define PORT_GROUP_WEB 1
+#define PORT_GROUP_LOW 2
+
+#define MAX_UINT_STRING "4294967295"
 
 /**
  * Data tracked for each port groups. Each smartlist records pointers to an
  * entry_t struct
  */
 typedef struct {
-  smartlist_t* total_counts;
+
+  // number of circuits collected in this session
+  int num_circuits;
+
+  // list of total number of cells processed at each time interval
   smartlist_t* time_profiles;
-  smartlist_t* time_stdevs;
+
+  // array of each circuit's total cell count
+  int total_counts[BUCKET_SIZE * BUCKET_NUM];
+
+  // array of standard deviation in each circuit's time profiles
+  double time_stdevs[BUCKET_SIZE * BUCKET_NUM];
+
 } data_t;
 
-/**
- * Single entry in a data set. The sum and count are recorded so that the data
- * can be dumped in the form of a mean at the end.
- */
-typedef struct {
-  double sum;
-  uint32_t count;
-} entry_t;
-
 // helper functions
-static port_group_t get_port_group(uint16_t port);
-static int get_count_bucket(int count);
-static int get_stdev_bucket(int stdev);
+static int get_port_group(uint16_t port);
+static const char* get_port_group_string(int port_group);
+static smartlist_t* bucketize_total_counts(int (*total_counts)[BUCKET_SIZE * BUCKET_NUM]);
+static smartlist_t* bucketize_time_stdevs(double (*time_stdevs)[BUCKET_SIZE * BUCKET_NUM]);
+static int int_comp(const void* a, const void* b);
+static int double_comp(const void* a, const void* b);
 
 // global data that will eventually be dumped to disk
-static digestmap_t* global_data;
+static data_t data[NUM_PORT_GROUPS];
 
 // index of the next session of data to be dumped to disk
-static int session;
-static time_t prev;
+static int session_num[NUM_PORT_GROUPS];
 static const char* mt_directory = "moneTor_live_data";
-
-static port_group_t groups[] = {PORT_GROUP_WEB, PORT_GROUP_LOW, PORT_GROUP_OTHER};
 
 /**
  * Globally initialize the mt_stats module. Should only be called once outside
  * of the module.
  */
 void mt_stats_init(void){
-
-  global_data = digestmap_new();
-
-  for(int i = 0; i < sizeof(groups) / sizeof(port_group_t); i++){
-    char digest[DIGEST_LEN] = {0};
-    memcpy(digest, groups[i], sizeof(port_group_t));
-
-    data_t* data = tor_malloc(sizeof(data_t));
-    data.total_counts = smartlist_new();
-    data.time_profiles = smarlitst_new();
-    data.time_stdevs = smartlist_new();
-
-    digestmap_add(global_data, digest_web, stat);
+  for(int i = 0; i < NUM_PORT_GROUPS; i++){
+    data[i].time_profiles = smartlist_new();
   }
 }
 
@@ -88,11 +78,10 @@ void mt_stats_circ_create(circuit_t* circ){
 
   mt_stats_t* stats = &TO_OR_CIRCUIT(circ)->mt_stats;
 
-  log_info(LD_GENERAL, "mt_stats %u", TO_OR_CIRCUIT(circ)->p_circ_id);
   stats->collecting = 1;
   stats->port = 0;
   stats->start_time = mt_time();
-  stats->time_profiles = smartlist_new();
+  stats->time_profile = smartlist_new();
 
 }
 
@@ -111,15 +100,10 @@ void mt_stats_circ_port(circuit_t* circ){
   or_circuit_t* or_circ = TO_OR_CIRCUIT(circ);
 
   if(or_circ->n_streams){
-    /** make sure there is only one port in use and record it */
-    //tor_assert(or_circ->n_streams && !or_circ->n_streams->next_stream);
     connection_t* stream = TO_CONN(or_circ->n_streams);
-    if(stats->port && stats->port != stream->port)
-      stats->is_multiport = 1;
+    tor_assert(!stats->port || stats->port == stream->port);
     stats->port = stream->port;
-    log_info(LD_GENERAL, "mt_stats %u %u", or_circ->p_circ_id, stream->port);
   }
-
 }
 
 /**
@@ -134,17 +118,17 @@ void mt_stats_circ_increment(circuit_t* circ){
   mt_stats_t* stats = &TO_OR_CIRCUIT(circ)->mt_stats;
 
   // increment total cell count
-  stats->total_cells++;
+  stats->total_count++;
 
   // add new time buckets if enough time has passed
   time_t time_diff = mt_time() - stats->start_time;
-  int num_buckets = smartlist_len(stats->time_profiles);
+  int num_buckets = smartlist_len(stats->time_profile);
   int exp_buckets = time_diff / MT_BUCKET_TIME + 1;
   for(int i = 0; i < exp_buckets - num_buckets; i++)
-    smartlist_add(stats->time_profiles, tor_calloc(1, sizeof(int)));
+    smartlist_add(stats->time_profile, tor_calloc(1, sizeof(int)));
 
   // increment the cell count in the latest time bucket
-  int* cur_bucket = smartlist_get(stats->time_profiles, exp_buckets -1);
+  int* cur_bucket = smartlist_get(stats->time_profile, exp_buckets -1);
   (*cur_bucket)++;
 }
 
@@ -158,50 +142,38 @@ void mt_stats_circ_record(circuit_t* circ){
   if(CIRCUIT_IS_ORIGIN(circ) || !TO_OR_CIRCUIT(circ)->mt_stats.collecting)
     return;
 
+  mt_stats_t* stats = &TO_OR_CIRCUIT(circ)->mt_stats;
+
   // if the port was never set then the exit stream was never used
-  if(!TO_OR_CIRCUIT(circ)->mt_stats.port){
+  if(!stats->port){
     stats->collecting = 0;
-    smartlist_free(stats->time_profiles);
+    smartlist_free(stats->time_profile);
     return;
   }
 
-  mt_stats_t* stats = &TO_OR_CIRCUIT(circ)->mt_stats;
 
   // obtain global data for the right port group
-  port_group_t group = get_port_group(stats->port);
-  char digest[DIGEST_LEN] = {0};
-  memcpu(digest, group; sizeof(port_group_t));
-  data_t* data = digestmap_get(global_data, digest);
+  int group = get_port_group(stats->port);
 
-  /******************** Record Total Cell Counts *******************/
-
-  int count_index = get_count_bucket(stats->total_cells);
-
-  // populate global cell count buckets in necessary
-  for(int i = smartlist_len(data->total_cells); i <= count_index; i++)
-    smartlist_add(data->total_cells, tor_calloc(1, sizeof(int)));
-
-  *smartlist_get(data->total_cells, count_index)++;
+  // if circuits exceeded this then something went wrong with dumping
+  tor_assert(data[group].num_circuits < BUCKET_SIZE * BUCKET_NUM);
 
   /*********************** Record Time Profiles ********************/
 
-  // increment global time profiles
-  for(int i = 0; i < smartlist_len(stats->time_profiles); i++){
+  int num_buckets = smartlist_len(stats->time_profile);
 
-    entry_t* stat;
+  // increase global time profiles length if necessary
+  for(int i = smartlist_len(data[group].time_profiles); i < num_buckets; i++)
+    smartlist_add(data[group].time_profiles, tor_calloc(1, sizeof(int)));
 
-    // retrieve the appropriate item from the list or add one if non exists
-    if(i < smartlist_len(data->time_profiles)){
-      stat = smartlist_get(data->time_profiles, i);
-    }
-    else {
-      stat = tor_calloc(1, sizeof(entry_t));
-      smartlist_add(data->time_profiles, stat);
-    }
-
-    stat->sum += *smartlist_get(stats->time_profiles, i);
-    stat->count++;
+  for(int i = 0; i < num_buckets; i++){
+    int* bucket = smartlist_get(data[group].time_profiles, i);
+    *bucket += *(int*)smartlist_get(stats->time_profile, i);
   }
+
+  /******************** Record Total Cell Counts *******************/
+
+  data[group].total_counts[data[group].num_circuits] = stats->total_count;
 
   /************** Record Time Profile Standard Deviations **********/
 
@@ -211,36 +183,30 @@ void mt_stats_circ_record(circuit_t* circ){
   int diff_squares = 0;
   double stdev = 0;
 
-  for(int i = 0; i < smartlist_len(stats->time_profiles); i++){
-    int += smartlist_get(stats->time_profiles, i);
+  for(int i = 0; i < smartlist_len(stats->time_profile); i++){
+    sum += *(int*)smartlist_get(stats->time_profile, i);
   }
 
-  mean = sum / smartlist_len(stats->time_profiles);
+  mean = sum / smartlist_len(stats->time_profile);
 
-  for(int i = 0; i < smartlist_len(stats->time_profiles); i++){
-    int diff = smartlist_get(stats->time_profiles, i) - mean;
+  for(int i = 0; i < smartlist_len(stats->time_profile); i++){
+    int diff = *(int*)smartlist_get(stats->time_profile, i) - mean;
     diff_squares += diff * diff;
   }
 
-  stdev = sqrt(diff_squares / smartlist_len(stats->time_profiles));
+  stdev = sqrt(diff_squares / smartlist_len(stats->time_profile));
 
-  int stdev_index = get_stdev_bucket(stdev);
-
-  // populate global cell count buckets in necessary
-  for(int i = smartlist_len(data->time_stdevs); i <= stdev_index; i++)
-    smartlist_add(data->time_stdevs, tor_calloc(1, sizeof(int)));
-
-  *smartlist_get(data->time_stdevs, stdev_index)++;
+  data[group].time_stdevs[data[group].num_circuits] = stdev;
 
   /*****************************************************************/
 
-  // free circ time_profile items
-  SMARTLIST_FOREACH_BEGIN(stats, entry_t*, cp) {
+  data[group].num_circuits++;
+
+  // free circ time_profile items and smartlist
+  SMARTLIST_FOREACH_BEGIN(stats->time_profile, int*, cp) {
     tor_free(cp);
   } SMARTLIST_FOREACH_END(cp);
-
-  // free circ time_profile
-  smartlist_free(stats->time_profiles);
+  smartlist_free(stats->time_profile);
 }
 
 /**
@@ -249,78 +215,79 @@ void mt_stats_circ_record(circuit_t* circ){
  */
 void mt_stats_dump(void){
 
-  time_t now = mt_time();
+  int group = -1;
 
-  // do this every hour
-  if(localtime(&now)->tm_yday > localtime(&prev)->tm_yday){
+  // loop through port groups and see if one of them is ready for dumping
+  for(int i = 0; i < NUM_PORT_GROUPS; i++){
 
-    // define filename based on time
-    char filename[strlen(mt_directory) + strlen(MAX_UINT_STR) + 1] = {0};
-    memcpy(filename, mt_directory, strlen(mt_directory));
-    sprintf(filename + strlen(mt_directory), "_%03d", session++);
+    // only one port group should be ready to be dumped at a time
+    tor_assert(group == -1 || data[i].num_circuits < BUCKET_SIZE * BUCKET_NUM);
 
-    for(int i = 0; i < sizeof(groups) / sizeof(port_group_t); i++){
-
-      char digest[DIGESt_LEN] = {0};
-      memcpu(digest, groups[i]; sizeof(port_group_t));
-
-      data_t* data = digestmap_get(global_data, digest);
-
-      // write port as ascii
-      char port_string[strlen(MAX_UINT_STR) + 1] = {0};
-      sprintf(port_string, "port group: %u", groups[i]);
-
-      char* total_counts_string = smartlist_join_strings(data->total_counts, ", ", 0, NULL);
-      char* time_profiles_string = smartlist_join_strings(data->time_profiles, ", ", 0, NULL);
-      char* time_stdevs_string = smartlist_join_strings(data->time_stdevs, ", ", 0, NULL);
-
-      FILE* fp = fopen(filename, "a");
-      fprintf(fp, "%s\n", port_string);
-      fprintf(fp, "%s\n", total_counts_string);
-      fprintf(fp, "%s\n", time_profiles_string);
-      fprintf(fp, "%s\n", time_stdevs_string);
-      fclose(fp);
-
-      // free strings
-      tor_free(total_counts_strings);
-      tor_free(time_profiles_strings);
-      tor_free(time_stdevs_strings);
-
-      // free smartlist elements
-      SMARTLIST_FOREACH_BEGIN(data->total_cell_counts, entry_t*, cp) {
-	tor_free(cp);
-      } SMARTLIST_FOREACH_END(cp);
-      SMARTLIST_FOREACH_BEGIN(data->time_profiles, entry_t*, cp) {
-	tor_free(cp);
-      } SMARTLIST_FOREACH_END(cp);
-      SMARTLIST_FOREACH_BEGIN(data->time_stdevs, entry_t*, cp) {
-	tor_free(cp);
-      } SMARTLIST_FOREACH_END(cp);
-
-      // free smartlists
-      smartlist_free(data->total_counts);
-      smartlist_free(data->time_profiles);
-      smartlist_free(data->time_stdevs);
-
-      // reinitialize smartlists
-      data->total_count = smartlist_new();
-      data->time_profiles = smartlist_new();
-      data->time_deviaitons = smartlist_new();
-
-      prev = now;
-    }
-
-    // reset global data
-    digestmap_free(global_data);
-    mt_stats_init();
+    if(data[i].num_circuits == BUCKET_SIZE * BUCKET_NUM)
+      group = i;
   }
+
+  // if no port groups are ready to be dumped then exit
+  if(group == -1)
+    return;
+
+  // create filename based on port group and session number
+  const char* group_string = get_port_group_string(group);
+  int filename_size = strlen(group_string) + 1 + strlen(MAX_UINT_STRING);
+  char filename[filename_size];
+  memset(filename, '\0', filename_size);
+  sprintf(filename, "%s_%d", group_string, session_num[group]++);
+
+  smartlist_t* total_counts_buckets = bucketize_total_counts(&data[group].total_counts);
+  smartlist_t* time_stdevs_buckets = bucketize_time_stdevs(&data[group].time_stdevs);
+
+  char* time_profiles_string = smartlist_join_strings(data[group].time_profiles, ", ", 0, NULL);
+  char* total_counts_string = smartlist_join_strings(total_counts_buckets, ", ", 0, NULL);
+  char* time_stdevs_string = smartlist_join_strings(time_stdevs_buckets, ", ", 0, NULL);
+
+  FILE* fp = fopen(filename, "w");
+  fprintf(fp, "%s\n", time_profiles_string);
+  fprintf(fp, "%s\n", total_counts_string);
+  fprintf(fp, "%s\n", time_stdevs_string);
+  fclose(fp);
+
+  // free strings
+  tor_free(time_profiles_string);
+  tor_free(total_counts_string);
+  tor_free(time_stdevs_string);
+
+  // free smartlists
+  SMARTLIST_FOREACH_BEGIN(data[group].time_profiles, int*, cp) {
+    tor_free(cp);
+  } SMARTLIST_FOREACH_END(cp);
+  smartlist_free(data[group].time_profiles);
+
+  SMARTLIST_FOREACH_BEGIN(total_counts_buckets, double*, cp) {
+    tor_free(cp);
+  } SMARTLIST_FOREACH_END(cp);
+  smartlist_free(total_counts_buckets);
+
+  SMARTLIST_FOREACH_BEGIN(time_stdevs_buckets, double*, cp) {
+    tor_free(cp);
+  } SMARTLIST_FOREACH_END(cp);
+  smartlist_free(time_stdevs_buckets);
+
+  // reinitialize global data fields
+  data[group].time_profiles = smartlist_new();
 }
 
+/**
+ * MOCKABLE time for testing purposes
+ */
 MOCK_IMPL(time_t, mt_time, (void)){
   return approx_time();
 }
 
-static port_group_t get_port_group(uint16_t port){
+/**
+ * Returns the general port group to which a given port belongs
+ */
+static int get_port_group(uint16_t port){
+
   if(port == 80 || port == 443)
     return PORT_GROUP_WEB;
   if(port < 1000)
@@ -329,9 +296,81 @@ static port_group_t get_port_group(uint16_t port){
   return PORT_GROUP_OTHER;
 }
 
-static int get_count_bucket(int count, int param){
-  return count / COUNT_PARAM;
+/**
+ * Returns a string literal representing a numerical port group
+ */
+static const char* get_port_group_string(int port_group){
+
+  switch(port_group){
+    case PORT_GROUP_OTHER:
+      return "port_group_other";
+    case PORT_GROUP_WEB:
+      return "port_group_web";
+    case PORT_GROUP_LOW:
+      return "port_group_low";
+    default:
+      return NULL;
+  }
 }
-static int get_stdev_bucket(int stdev, double param){
-  return (int)(stdev / STDEV_PARAM);
+
+/**
+ * Accepts an array of integers and returns a smartlist of
+ * doubles. Conceptionally, original data is sorted and broken up into
+ * BUCKET_NUM number sets of BUCKET_SIZE number of elements. The returned
+ * valuesare the mean of each bucket
+ */
+static smartlist_t* bucketize_total_counts(int (*total_counts)[BUCKET_SIZE * BUCKET_NUM]){
+
+  qsort(*total_counts, BUCKET_SIZE * BUCKET_NUM, sizeof(int), int_comp);
+  smartlist_t* result = smartlist_new();
+
+  for(int i = 0; i < BUCKET_NUM; i++){
+    double sum = 0;
+    for(int j = 0; j < BUCKET_SIZE; i++)
+      sum += (*total_counts)[i * BUCKET_SIZE + j];
+
+    double* mean = tor_malloc(sizeof(double));
+    *mean = sum / BUCKET_SIZE;
+    smartlist_add(result, mean);
+  }
+
+  return result;
+}
+
+/**
+ * Accepts an array of doubles and returns a smartlist of
+ * doubles. Conceptionally, original data is sorted and broken up into
+ * BUCKET_NUM number sets of BUCKET_SIZE number of elements. The returned
+ * valuesare the mean of each bucket
+ */
+static smartlist_t* bucketize_time_stdevs(double (*time_stdevs)[BUCKET_SIZE * BUCKET_NUM]){
+
+  qsort(*time_stdevs, BUCKET_SIZE * BUCKET_NUM, sizeof(double), double_comp);
+  smartlist_t* result = smartlist_new();
+
+  for(int i = 0; i < BUCKET_NUM; i++){
+    double sum = 0;
+    for(int j = 0; j < BUCKET_SIZE; i++)
+      sum += (*time_stdevs)[i * BUCKET_SIZE + j];
+
+    double* mean = tor_malloc(sizeof(double));
+    *mean = sum / BUCKET_SIZE;
+    smartlist_add(result, mean);
+  }
+
+  return result;
+}
+
+/**
+ * Integer comparator function for qsort
+ */
+static int int_comp(const void* a, const void* b){
+  return (int*)a - (int*)b;
+}
+
+/**
+ * Double comparator function for qsort
+ */
+static int double_comp(const void* a, const void* b){
+    return (double*)a - (double*)b;
 }

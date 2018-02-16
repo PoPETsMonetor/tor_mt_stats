@@ -85,6 +85,7 @@
 #include "keypin.h"
 #include "main.h"
 #include "microdesc.h"
+#include "mt_stats.h"
 #include "networkstatus.h"
 #include "nodelist.h"
 #include "ntmain.h"

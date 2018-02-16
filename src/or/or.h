@@ -808,20 +808,16 @@ typedef struct {
   int collecting;
 
   /** total number of cells in a circuit (should be equal to processed_cells */
-  uint32_t total_cells;
+  uint32_t total_count;
 
   /** time at the beginning of stat collection */
   time_t start_time;
 
   /** number of cells in each time interval of time MT_BUCKET_TIME */
-  smartlist_t* time_profiles;
+  smartlist_t* time_profile;
 
   /** port number of the circuit exit connection */
   uint16_t port;
-
-  /** flagged as true if more than one port was used -- this should always be
-      false if IsolateDestPort was set correctly */
-  int is_multiport;
 
 } mt_stats_t;
 
