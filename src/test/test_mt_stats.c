@@ -24,14 +24,14 @@ typedef struct {
 } test_data_t;
 
 typedef struct {
-  int write_counts;
+  int publish_counts;
   int time_profiles;
   double total_counts;
 } validation_data_t;
 
 // helper functions
 static time_t mock_time(void);
-static void mock_write_to_disk(const char* filename, smartlist_t* time_profiles_buckets,
+static void mock_publish_to_disk(const char* filename, smartlist_t* time_profiles_buckets,
 			       smartlist_t* total_counts_buckets, smartlist_t* time_stdevs_buckets);
 static circuit_t* new_circ(void);
 static uint16_t rand_port(void);
@@ -52,7 +52,7 @@ static void test_mt_stats(void *arg)
   (void)arg;
 
   MOCK(mt_time, mock_time);
-  MOCK(mt_write_to_disk, mock_write_to_disk);
+  MOCK(mt_publish_to_disk, mock_publish_to_disk);
 
   /************************* Setup *************************/
 
@@ -115,17 +115,17 @@ static void test_mt_stats(void *arg)
       }
     }
 
-    mt_stats_write();
+    mt_stats_publish();
     current_time++;
   }
 
   /************************ Validate ***********************/
 
-  int write_counts_total = 0;
+  int publish_counts_total = 0;
   int test_counts_total = 0;
 
   for(int i = 0; i < MT_NUM_PORT_GROUPS; i++){
-    write_counts_total += written_counts[i] / (MT_BUCKET_SIZE * MT_BUCKET_NUM);
+    publish_counts_total += written_counts[i] / (MT_BUCKET_SIZE * MT_BUCKET_NUM);
 
     for(int j = 0; j < written_counts[i]; j++){
       test_counts_total += ((test_data_t*)smartlist_get(test_data[i], j))->test_counts;
@@ -141,7 +141,7 @@ static void test_mt_stats(void *arg)
  done:
 
   UNMOCK(mt_time);
-  UNMOCK(mt_write_to_disk);
+  UNMOCK(mt_publish_to_disk);
 
   SMARTLIST_FOREACH_BEGIN(active_circs, circuit_t*, circ){
     circuit_free(circ);
@@ -167,11 +167,11 @@ static time_t mock_time(void){
   return current_time;
 }
 
-static void mock_write_to_disk(const char* filename, smartlist_t* time_profiles_buckets,
+static void mock_publish_to_disk(const char* filename, smartlist_t* time_profiles_buckets,
 			       smartlist_t* total_counts_buckets, smartlist_t* time_stdevs_buckets){
   (void)filename;
 
-  validation_data.write_counts++;
+  validation_data.publish_counts++;
 
   tor_assert(smartlist_len(total_counts_buckets) == MT_BUCKET_NUM);
   tor_assert(smartlist_len(time_stdevs_buckets) == MT_BUCKET_NUM);

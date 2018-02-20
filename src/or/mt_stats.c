@@ -29,7 +29,7 @@
  *   <li> <b>mt_stats_circ_port()</b> <--- <b>connection_edge.c</b>
  *   <li> <b>mt_stats_circ_increment()</b> <--- <b>relay.c</b>
  *   <li> <b>mt_stats_circ_record()</b> <--- <b>circuitlist.c</b>
- *   <li> <b>mt_stats_circ_write()</b> <--- <b>main.c</b>
+ *   <li> <b>mt_stats_circ_publish()</b> <--- <b>main.c</b>
  * </ul>
  */
 
@@ -70,7 +70,7 @@ static data_t data[MT_NUM_PORT_GROUPS];
 
 // index of the next session of data to be dumped to disk
 static int session_num[MT_NUM_PORT_GROUPS];
-static const char* directory = "moneTor_live_data";
+static const char* directory = "mt_stats_published";
 
 /**
  * Globally initialize the mt_stats module. Should only be called once outside
@@ -97,7 +97,6 @@ void mt_stats_circ_create(circuit_t* circ){
   stats->port = 0;
   stats->start_time = mt_time();
   stats->time_profile = smartlist_new();
-
 }
 
 /**
@@ -232,7 +231,7 @@ void mt_stats_circ_record(circuit_t* circ){
  * Dump the global statistics collection data, clear the memory, and prepare for
  * the next session
  */
-void mt_stats_write(void){
+void mt_stats_publish(void){
 
   int group = -1;
 
@@ -260,7 +259,7 @@ void mt_stats_write(void){
   smartlist_t* total_counts_buckets = bucketize_total_counts(&data[group].total_counts);
   smartlist_t* time_stdevs_buckets = bucketize_time_stdevs(&data[group].time_stdevs);
 
-  mt_write_to_disk((const char*)filename, data[group].time_profiles, total_counts_buckets,
+  mt_publish_to_disk((const char*)filename, data[group].time_profiles, total_counts_buckets,
 		time_stdevs_buckets);
 
   // free smartlists
@@ -302,6 +301,66 @@ int mt_port_group(uint16_t port){
  */
 MOCK_IMPL(time_t, mt_time, (void)){
   return approx_time();
+}
+
+/**
+ * Publishes the given time profiles, total counts, and time stdevs information to
+ * the disk. For testing purposes, this can be mockable to intercept the data
+ * for validation instead.
+ */
+MOCK_IMPL(void, mt_publish_to_disk, (const char* filename, smartlist_t* time_profiles_buckets,
+			       smartlist_t* total_counts_buckets, smartlist_t* time_stdevs_buckets)){
+
+  smartlist_t* time_profiles_strings = smartlist_new();
+  smartlist_t* total_counts_strings = smartlist_new();
+  smartlist_t* time_stdevs_strings = smartlist_new();
+
+  for(int i = 0; i < MT_BUCKET_NUM; i++){
+
+    int time_profile = *(int*)smartlist_get(time_profiles_buckets, i);
+    double total_count = *(double*)smartlist_get(total_counts_buckets, i);
+    double time_stdev = *(double*)smartlist_get(time_stdevs_buckets, i);
+
+    smartlist_add_asprintf(time_profiles_strings, "%d", time_profile);
+    smartlist_add_asprintf(total_counts_strings, "%lf", total_count);
+    smartlist_add_asprintf(time_stdevs_strings, "%lf", time_stdev);
+  }
+
+  char* time_profiles_string = smartlist_join_strings(time_profiles_strings, ", ", 0, NULL);
+  char* total_counts_string = smartlist_join_strings(total_counts_strings, ", ", 0, NULL);
+  char* time_stdevs_string = smartlist_join_strings(time_stdevs_strings, ", ", 0, NULL);
+
+    // make directory if it doesn't exist yet
+  struct stat st = {0};
+  if (stat(directory, &st) == -1) {
+    mkdir(directory, 0700);
+  }
+
+  FILE* fp = fopen(filename, "w");
+  fprintf(fp, "%s\n", time_profiles_string);
+  fprintf(fp, "%s\n", total_counts_string);
+  fprintf(fp, "%s\n", time_stdevs_string);
+  fclose(fp);
+
+  SMARTLIST_FOREACH_BEGIN(time_profiles_strings, char*, cp) {
+    tor_free(cp);
+  } SMARTLIST_FOREACH_END(cp);
+  smartlist_free(time_profiles_strings);
+
+  SMARTLIST_FOREACH_BEGIN(total_counts_strings, char*, cp) {
+    tor_free(cp);
+  } SMARTLIST_FOREACH_END(cp);
+  smartlist_free(total_counts_strings);
+
+  SMARTLIST_FOREACH_BEGIN(time_stdevs_strings, char*, cp) {
+    tor_free(cp);
+  } SMARTLIST_FOREACH_END(cp);
+  smartlist_free(time_stdevs_strings);
+
+  // free strings
+  tor_free(time_profiles_string);
+  tor_free(total_counts_string);
+  tor_free(time_stdevs_string);
 }
 
 /**
@@ -386,59 +445,4 @@ static int double_comp(const void* a, const void* b){
   if(diff < 0)
     return -1;
   return 0;
-}
-
-MOCK_IMPL(void, mt_write_to_disk, (const char* filename, smartlist_t* time_profiles_buckets,
-			       smartlist_t* total_counts_buckets, smartlist_t* time_stdevs_buckets)){
-
-  smartlist_t* time_profiles_strings = smartlist_new();
-  smartlist_t* total_counts_strings = smartlist_new();
-  smartlist_t* time_stdevs_strings = smartlist_new();
-
-  for(int i = 0; i < MT_BUCKET_NUM; i++){
-
-    int time_profile = *(int*)smartlist_get(time_profiles_buckets, i);
-    double total_count = *(double*)smartlist_get(total_counts_buckets, i);
-    double time_stdev = *(double*)smartlist_get(time_stdevs_buckets, i);
-
-    smartlist_add_asprintf(time_profiles_strings, "%d", time_profile);
-    smartlist_add_asprintf(total_counts_strings, "%lf", total_count);
-    smartlist_add_asprintf(time_stdevs_strings, "%lf", time_stdev);
-  }
-
-  char* time_profiles_string = smartlist_join_strings(time_profiles_strings, ", ", 0, NULL);
-  char* total_counts_string = smartlist_join_strings(total_counts_strings, ", ", 0, NULL);
-  char* time_stdevs_string = smartlist_join_strings(time_stdevs_strings, ", ", 0, NULL);
-
-    // make directory if it doesn't exist yet
-  struct stat st = {0};
-  if (stat(directory, &st) == -1) {
-    mkdir(directory, 0700);
-  }
-
-  FILE* fp = fopen(filename, "w");
-  fprintf(fp, "%s\n", time_profiles_string);
-  fprintf(fp, "%s\n", total_counts_string);
-  fprintf(fp, "%s\n", time_stdevs_string);
-  fclose(fp);
-
-  SMARTLIST_FOREACH_BEGIN(time_profiles_strings, char*, cp) {
-    tor_free(cp);
-  } SMARTLIST_FOREACH_END(cp);
-  smartlist_free(time_profiles_strings);
-
-  SMARTLIST_FOREACH_BEGIN(total_counts_strings, char*, cp) {
-    tor_free(cp);
-  } SMARTLIST_FOREACH_END(cp);
-  smartlist_free(total_counts_strings);
-
-  SMARTLIST_FOREACH_BEGIN(time_stdevs_strings, char*, cp) {
-    tor_free(cp);
-  } SMARTLIST_FOREACH_END(cp);
-  smartlist_free(time_stdevs_strings);
-
-  // free strings
-  tor_free(time_profiles_string);
-  tor_free(total_counts_string);
-  tor_free(time_stdevs_string);
 }
