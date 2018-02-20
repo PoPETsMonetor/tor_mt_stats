@@ -796,9 +796,18 @@ typedef enum {
 
 /************************ moneTor stats ****************************/
 
-/** Time in seconds to bucketize cell counts */
+/* Define data granularity for time profiles */
 #define MT_BUCKET_TIME 5
-#define MT_
+
+/* Define data granularity for total cell count and time profile stdev */
+#define MT_BUCKET_SIZE 20
+#define MT_BUCKET_NUM 20
+
+/* Track one set of data for each of these port groups */
+#define MT_NUM_PORT_GROUPS 3
+#define MT_PORT_GROUP_OTHER 0
+#define MT_PORT_GROUP_WEB 1
+#define MT_PORT_GROUP_LOW 2
 
 /* List of processed cell counts in each bucket of time MT_BUCKET_TIME */
 typedef struct {

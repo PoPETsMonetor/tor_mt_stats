@@ -2659,7 +2659,7 @@ run_main_loop_once(void)
     }
   }
 
-  mt_stats_dump();
+  mt_stats_write();
 
   /* And here is where we put callbacks that happen "every time the event loop
    * runs."  They must be very fast, or else the whole Tor process will get
