@@ -70,7 +70,7 @@ static data_t data[MT_NUM_PORT_GROUPS];
 
 // index of the next session of data to be dumped to disk
 static int session_num[MT_NUM_PORT_GROUPS];
-static const char* directory = "mt_stats_published";
+static const char* directory = "mt_stats/published";
 
 /**
  * Globally initialize the mt_stats module. Should only be called once outside
