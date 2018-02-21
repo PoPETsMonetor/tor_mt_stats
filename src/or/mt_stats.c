@@ -315,13 +315,16 @@ MOCK_IMPL(void, mt_publish_to_disk, (const char* filename, smartlist_t* time_pro
   smartlist_t* total_counts_strings = smartlist_new();
   smartlist_t* time_stdevs_strings = smartlist_new();
 
+  for(int i = 0; i < smartlist_len(time_profiles_buckets); i++){
+      int time_profile = *(int*)smartlist_get(time_profiles_buckets, i);
+      smartlist_add_asprintf(time_profiles_strings, "%d", time_profile);
+  }
+
   for(int i = 0; i < MT_BUCKET_NUM; i++){
 
-    int time_profile = *(int*)smartlist_get(time_profiles_buckets, i);
     double total_count = *(double*)smartlist_get(total_counts_buckets, i);
     double time_stdev = *(double*)smartlist_get(time_stdevs_buckets, i);
 
-    smartlist_add_asprintf(time_profiles_strings, "%d", time_profile);
     smartlist_add_asprintf(total_counts_strings, "%lf", total_count);
     smartlist_add_asprintf(time_stdevs_strings, "%lf", time_stdev);
   }
