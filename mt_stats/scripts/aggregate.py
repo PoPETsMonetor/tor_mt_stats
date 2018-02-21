@@ -1,16 +1,16 @@
 import os
 import csv
 
-directory = '../published'
+directory = os.path.dirname(os.path.realpath(__file__)) + '/..'
 
-for filename in os.listdir(directory):
+for filename in os.listdir(directory + '/published/'):
 
     # extract port group from the filename
     group = filename.rsplit('_', 1)[0]
 
     # read in current aggregate file if it exists
     try:
-        with open('../aggregate/' + group, 'rb') as csvfile:
+        with open(directory + '/aggregate/' + group, 'rb') as csvfile:
             reader = csv.reader(csvfile, skipinitialspace=True, delimiter=',');
             aggregateTimeProfiles = [int(x) for x in next(reader)];
             aggregateTotalCounts = [float(x) for x in next(reader)];
@@ -21,7 +21,7 @@ for filename in os.listdir(directory):
         aggregateTimeStdevs = []
 
     # open each new published file
-    with open(directory + '/' + filename, 'rb') as csvfile:
+    with open(directory + '/published/' + filename, 'rb') as csvfile:
         reader = csv.reader(csvfile, skipinitialspace=True, delimiter=',')
         timeProfiles = [int(x) for x in next(reader)];
         totalCounts = [float(x) for x in next(reader)];
@@ -38,11 +38,8 @@ for filename in os.listdir(directory):
     list.sort(aggregateTotalCounts)
     list.sort(aggregateTimeStdevs)
 
-    # delete published file
-    os.remove(directory + '/' + filename)
-
     # overwrite aggregate data
-    with open('../aggregate/' + group, 'wb') as csvfile:
+    with open(directory + '/aggregate/' + group, 'wb') as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
         writer.writerow(aggregateTimeProfiles);
         writer.writerow(aggregateTotalCounts);
