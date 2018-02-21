@@ -333,12 +333,6 @@ MOCK_IMPL(void, mt_publish_to_disk, (const char* filename, smartlist_t* time_pro
   char* total_counts_string = smartlist_join_strings(total_counts_strings, ", ", 0, NULL);
   char* time_stdevs_string = smartlist_join_strings(time_stdevs_strings, ", ", 0, NULL);
 
-    // make directory if it doesn't exist yet
-  struct stat st = {0};
-  if (stat(directory, &st) == -1) {
-    mkdir(directory, 0700);
-  }
-
   FILE* fp = fopen(filename, "w");
   fprintf(fp, "%s\n", time_profiles_string);
   fprintf(fp, "%s\n", total_counts_string);
