@@ -840,6 +840,9 @@ connection_edge_send_command(edge_connection_t *fromconn,
     ++(TO_DIR_CONN(linked_conn)->data_cells_sent);
   }
 #endif /* defined(MEASUREMENTS_21206) */
+  if (relay_command == RELAY_COMMAND_DATA) {
+    mt_stats_circ_increment(circ);
+  }
 
   return relay_send_command_from_edge(fromconn->stream_id, circ,
                                       relay_command, payload,
