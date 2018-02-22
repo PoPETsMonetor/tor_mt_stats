@@ -804,10 +804,12 @@ typedef enum {
 #define MT_BUCKET_NUM 20
 
 /* Track one set of data for each of these port groups */
-#define MT_NUM_PORT_GROUPS 3
-#define MT_PORT_GROUP_OTHER 0
-#define MT_PORT_GROUP_WEB 1
-#define MT_PORT_GROUP_LOW 2
+#define MT_NUM_PORT_GROUPS 4
+// Starting at 0 can be dangerous 
+#define MT_PORT_GROUP_OTHER 1
+#define MT_PORT_GROUP_WEB 2
+#define MT_PORT_GROUP_LOW 3
+#define MT_PORT_GROUP_MULTIPLE 4
 
 /* List of processed cell counts in each bucket of time MT_BUCKET_TIME */
 typedef struct {
@@ -825,8 +827,12 @@ typedef struct {
   /** number of cells in each time interval of time MT_BUCKET_TIME */
   smartlist_t* time_profile;
 
-  /** port number of the circuit exit connection */
-  uint16_t port;
+  /** port group supported by the circuit exit connection */
+  uint16_t port_group;
+  
+  /** Whether or not the circuit linked to this mt_stats_t
+   *  handle multiple of our group port */
+  unsigned int handle_multiple_group_port : 1;
 
 } mt_stats_t;
 

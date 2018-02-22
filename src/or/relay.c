@@ -1661,6 +1661,7 @@ connection_edge_process_relay_cell(cell_t *cell, circuit_t *circ,
       return connection_exit_begin_conn(cell, circ);
     case RELAY_COMMAND_DATA:
       ++stats_n_data_cells_received;
+      mt_stats_circ_increment(circ);
       if (( layer_hint && --layer_hint->deliver_window < 0) ||
           (!layer_hint && --circ->deliver_window < 0)) {
         log_fn(LOG_PROTOCOL_WARN, LD_PROTOCOL,
@@ -2801,7 +2802,6 @@ channel_flush_from_first_active_circuit, (channel_t *chan, int max))
         or_circ->processed_cells++;
       }
 
-      mt_stats_circ_increment(circ);
 
       if (get_options()->TestingEnableCellStatsEvent) {
         uint8_t command = packed_cell_get_command(cell, chan->wide_circ_ids);

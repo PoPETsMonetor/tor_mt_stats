@@ -316,9 +316,9 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
   }
 
   circ = or_circuit_new(cell->circ_id, chan);
-  mt_stats_circ_create(TO_CIRCUIT(circ));
 
   circ->base_.purpose = CIRCUIT_PURPOSE_OR;
+  mt_stats_circ_create(TO_CIRCUIT(circ));
   circuit_set_state(TO_CIRCUIT(circ), CIRCUIT_STATE_ONIONSKIN_PENDING);
   create_cell = tor_malloc_zero(sizeof(create_cell_t));
   if (create_cell_parse(create_cell, cell) < 0) {

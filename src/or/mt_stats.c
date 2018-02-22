@@ -94,29 +94,39 @@ void mt_stats_circ_create(circuit_t* circ){
   mt_stats_t* stats = &TO_OR_CIRCUIT(circ)->mt_stats;
 
   stats->collecting = 1;
-  stats->port = 0;
-  stats->start_time = mt_time();
   stats->time_profile = smartlist_new();
 }
 
 /**
- * Record the port for an exit circuit. The expectation is that isolation flags
- * are set directly. If a port is found that conflicts with a previous port from
- * this circuit then an assertion error will be thrown
+ * Record the port group for an exit circuit.
+ *
+ * If we observe multiple group, we set this circuit to MT_PORT_GROUP_MULTIPLE
+ *
+ * Called each time we succeed dns_resolve()
  */
-void mt_stats_circ_port(circuit_t* circ){
+void mt_stats_circ_port(circuit_t* circ, edge_connection_t* n_stream){
 
   // exit if the circuit is not marked for stat collection
   if(CIRCUIT_IS_ORIGIN(circ) || !TO_OR_CIRCUIT(circ)->mt_stats.collecting)
     return;
 
   mt_stats_t* stats = &TO_OR_CIRCUIT(circ)->mt_stats;
-  or_circuit_t* or_circ = TO_OR_CIRCUIT(circ);
-
-  if(or_circ->n_streams){
-    connection_t* stream = TO_CONN(or_circ->n_streams);
-    tor_assert(!stats->port || stats->port == stream->port);
-    stats->port = stream->port;
+  /** This should match the timing of the first CONNECTED
+   * cell that this circuit sent back */
+  if (!stats->port_group)
+    stats->start_time = mt_time();
+  /** We consider group instead of port, directly */
+  connection_t* curr_stream = TO_CONN(n_stream);
+  if (!stats->port_group) {
+    stats->port_group = mt_port_group(curr_stream->port);
+  }
+  else {
+    if (stats->port_group != mt_port_group(curr_stream->port)) {
+      stats->handle_multiple_group_port = 1;
+      /** If we notice this circuit handle more than one group
+       * port, we simply change its type to MT_PORT_GROUP_MULTIPLE */
+      stats->port_group = MT_PORT_GROUP_MULTIPLE;
+    }
   }
 }
 
@@ -158,34 +168,34 @@ void mt_stats_circ_record(circuit_t* circ){
   mt_stats_t* stats = &TO_OR_CIRCUIT(circ)->mt_stats;
 
   // if the port was never set or used then the exit stream was never used
-  if(!stats->port || !stats->total_count){
+  if(!stats->port_group || !stats->total_count){
     stats->collecting = 0;
     smartlist_free(stats->time_profile);
     return;
   }
 
   // obtain global data for the right port group
-  int group = mt_port_group(stats->port);
+  int group = stats->port_group;
 
   // if circuits exceeded this then something went wrong with dumping
-  tor_assert(data[group].num_circuits < MT_BUCKET_SIZE * MT_BUCKET_NUM);
+  tor_assert(data[group-1].num_circuits < MT_BUCKET_SIZE * MT_BUCKET_NUM);
 
   /*********************** Record Time Profiles ********************/
 
   int num_buckets = smartlist_len(stats->time_profile);
 
   // increase global time profiles length if necessary
-  for(int i = smartlist_len(data[group].time_profiles); i < num_buckets; i++)
-    smartlist_add(data[group].time_profiles, tor_calloc(1, sizeof(int)));
+  for(int i = smartlist_len(data[group-1].time_profiles); i < num_buckets; i++)
+    smartlist_add(data[group-1].time_profiles, tor_calloc(1, sizeof(int)));
 
   for(int i = 0; i < num_buckets; i++){
-    int* bucket = smartlist_get(data[group].time_profiles, i);
+    int* bucket = smartlist_get(data[group-1].time_profiles, i);
     *bucket += *(int*)smartlist_get(stats->time_profile, i);
   }
 
   /******************** Record Total Cell Counts *******************/
 
-  data[group].total_counts[data[group].num_circuits] = stats->total_count;
+  data[group-1].total_counts[data[group-1].num_circuits] = stats->total_count;
 
   /************** Record Time Profile Standard Deviations **********/
 
@@ -214,11 +224,11 @@ void mt_stats_circ_record(circuit_t* circ){
     stdev = sqrt(diff_squares / len);
   }
 
-  data[group].time_stdevs[data[group].num_circuits] = stdev;
+  data[group-1].time_stdevs[data[group-1].num_circuits] = stdev;
 
   /*****************************************************************/
 
-  data[group].num_circuits++;
+  data[group-1].num_circuits++;
 
   // free circ time_profile items and smartlist
   SMARTLIST_FOREACH_BEGIN(stats->time_profile, int*, cp) {
@@ -233,20 +243,22 @@ void mt_stats_circ_record(circuit_t* circ){
  */
 void mt_stats_publish(void){
 
-  int group = -1;
+  int group = 0;
 
   // loop through port groups and see if one of them is ready for dumping
   for(int i = 0; i < MT_NUM_PORT_GROUPS; i++){
 
     // only one port group should be ready to be dumped at a time
-    tor_assert(group == -1 || data[i].num_circuits < MT_BUCKET_SIZE * MT_BUCKET_NUM);
+    /*tor_assert(group == 0 || data[i].num_circuits < MT_BUCKET_SIZE * MT_BUCKET_NUM);*/
 
-    if(data[i].num_circuits == MT_BUCKET_SIZE * MT_BUCKET_NUM)
-      group = i;
+    if(data[i].num_circuits == MT_BUCKET_SIZE * MT_BUCKET_NUM) {
+      group = i+1;
+      break;
+    }
   }
 
   // if no port groups are ready to be dumped then exit
-  if(group == -1)
+  if(!group)
     return;
 
   // create filename based on port group and session number
@@ -256,17 +268,17 @@ void mt_stats_publish(void){
   memset(filename, '\0', filename_size);
   sprintf(filename, "%s/%s_%d", directory, group_string, session_num[group]++);
 
-  smartlist_t* total_counts_buckets = bucketize_total_counts(&data[group].total_counts);
-  smartlist_t* time_stdevs_buckets = bucketize_time_stdevs(&data[group].time_stdevs);
+  smartlist_t* total_counts_buckets = bucketize_total_counts(&data[group-1].total_counts);
+  smartlist_t* time_stdevs_buckets = bucketize_time_stdevs(&data[group-1].time_stdevs);
 
-  mt_publish_to_disk((const char*)filename, data[group].time_profiles, total_counts_buckets,
+  mt_publish_to_disk((const char*)filename, data[group-1].time_profiles, total_counts_buckets,
 		time_stdevs_buckets);
 
   // free smartlists
-  SMARTLIST_FOREACH_BEGIN(data[group].time_profiles, int*, cp) {
+  SMARTLIST_FOREACH_BEGIN(data[group-1].time_profiles, int*, cp) {
     tor_free(cp);
   } SMARTLIST_FOREACH_END(cp);
-  smartlist_free(data[group].time_profiles);
+  smartlist_free(data[group-1].time_profiles);
 
   SMARTLIST_FOREACH_BEGIN(total_counts_buckets, double*, cp) {
     tor_free(cp);
@@ -279,8 +291,8 @@ void mt_stats_publish(void){
   smartlist_free(time_stdevs_buckets);
 
   // reinitialize global data fields
-  data[group].time_profiles = smartlist_new();
-  data[group].num_circuits = 0;
+  data[group-1].time_profiles = smartlist_new();
+  data[group-1].num_circuits = 0;
 }
 
 /**
@@ -372,6 +384,8 @@ static const char* get_port_group_string(int port_group){
       return "port_group_web";
     case MT_PORT_GROUP_LOW:
       return "port_group_low";
+    case MT_PORT_GROUP_MULTIPLE:
+      return "port_group_multiple";
     default:
       return NULL;
   }

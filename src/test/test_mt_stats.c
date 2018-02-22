@@ -32,7 +32,7 @@ typedef struct {
 // helper functions
 static time_t mock_time(void);
 static void mock_publish_to_disk(const char* filename, smartlist_t* time_profiles_buckets,
-			       smartlist_t* total_counts_buckets, smartlist_t* time_stdevs_buckets);
+    smartlist_t* total_counts_buckets, smartlist_t* time_stdevs_buckets);
 static circuit_t* new_circ(void);
 static uint16_t rand_port(void);
 static int compare_random(const void **a, const void **b);
@@ -75,7 +75,7 @@ static void test_mt_stats(void *arg)
     if((double)(rand())/RAND_MAX < CIRC_PROB){
       circuit_t* circ_create = new_circ();
       mt_stats_circ_create(circ_create);
-      mt_stats_circ_port(circ_create);
+      mt_stats_circ_port(circ_create, TO_OR_CIRCUIT(circ_create)->n_streams);
       smartlist_add(active_circs, circ_create);
     }
 
@@ -86,23 +86,23 @@ static void test_mt_stats(void *arg)
     // loop through active circuits and randomly increment
     SMARTLIST_FOREACH_BEGIN(active_circs, circuit_t*, circ) {
       if((double) rand()/RAND_MAX < SEND_PROB){
-	mt_stats_circ_increment(circ);
+        mt_stats_circ_increment(circ);
       }
     } SMARTLIST_FOREACH_END(circ);
 
     // randomly destroy a circuit
     if(((double)rand()/RAND_MAX < CIRC_PROB) &&
-       (circ_destroy = smartlist_pop_last(active_circs))){
+        (circ_destroy = smartlist_pop_last(active_circs))){
 
       mt_stats_t* stats = &TO_OR_CIRCUIT(circ_destroy)->mt_stats;
 
       // record test stats for later validation
-      if(stats->port && stats->total_count > 0){
-	test_data_t* data = tor_malloc(sizeof(test_data_t));
-	data->test_counts = stats->total_count;
-	uint group = mt_port_group(stats->port);
-	smartlist_add(test_data[group], data);
-	recorded_counts[group]++;
+      if(stats->port_group && stats->total_count > 0){
+        test_data_t* data = tor_malloc(sizeof(test_data_t));
+        data->test_counts = stats->total_count;
+        uint group = stats->port_group;
+        smartlist_add(test_data[group], data);
+        recorded_counts[group]++;
       }
 
       mt_stats_circ_record(circ_destroy);
@@ -111,7 +111,7 @@ static void test_mt_stats(void *arg)
 
     for(int j = 0; j < MT_NUM_PORT_GROUPS; j++){
       if(recorded_counts[j] % (MT_BUCKET_SIZE * MT_BUCKET_NUM) == 0){
-	written_counts[j] = recorded_counts[j];
+        written_counts[j] = recorded_counts[j];
       }
     }
 
@@ -138,7 +138,7 @@ static void test_mt_stats(void *arg)
   tt_assert(test_counts_total == validation_data.time_profiles);
   tt_assert(total_counts_diff < EPSILON);
 
- done:
+done:
 
   UNMOCK(mt_time);
   UNMOCK(mt_publish_to_disk);
@@ -168,7 +168,7 @@ static time_t mock_time(void){
 }
 
 static void mock_publish_to_disk(const char* filename, smartlist_t* time_profiles_buckets,
-			       smartlist_t* total_counts_buckets, smartlist_t* time_stdevs_buckets){
+    smartlist_t* total_counts_buckets, smartlist_t* time_stdevs_buckets){
   (void)filename;
 
   validation_data.publish_counts++;
@@ -212,11 +212,11 @@ static uint16_t rand_port(void){
       return rand() % 2 == 0 ? 80 : 443;
     case MT_PORT_GROUP_LOW:
       while(!(result != 0 && result != 80 && result != 443 && result < 1000))
-	result = rand();
+        result = rand();
       return result;
     case MT_PORT_GROUP_OTHER:
       while(!(result >= 1000))
-	result = rand();
+        result = rand();
       return result;
   }
 
