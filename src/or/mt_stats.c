@@ -321,8 +321,37 @@ int mt_port_group(uint16_t port){
 
   if(port == 80 || port == 443)
     return MT_PORT_GROUP_WEB;
-  if(port < 1000)
-    return MT_PORT_GROUP_LOW;
+  if(port == 20 || port == 21 ||
+     port == 989 || port == 990)
+    return MT_PORT_GROUP_FTP;
+  if (port == 110 || port == 143 ||
+      port == 220 || port == 993 ||
+      port == 995)
+    return MT_PORT_GROUP_MAIL;
+  if (port == 9418 || port == 3690)
+    return MT_PORT_GROUP_GITSVN;
+  if (port == 5222 || port == 5223)
+    return MT_PORT_GROUP_CHAT;
+  if (port == 43 || port == 4321)
+    return MT_PORT_GROUP_WHOIS;
+  if (port == 53)
+    return MT_PORT_GROUP_DNS;
+  if (port == 873)
+    return MT_PORT_GROUP_RSYNC;
+  if (port == 991)
+    return MT_PORT_GROUP_NAS;
+  if (port == 992)
+    return MT_PORT_GROUP_TELNETS;
+  if (port == 1194)
+    return MT_PORT_GROUP_VPN;
+  if (port == 1293)
+    return MT_PORT_GROUP_IPSEC;
+  if (port == 11371)
+    return MT_PORT_GROUP_PGPHKP;
+  if (port == 5228)
+    return MT_PORT_GROUP_ANDROIDM;
+  if (port == 64738)
+    return MT_PORT_GROUP_MUMBLE;
 
   return MT_PORT_GROUP_OTHER;
 }
@@ -401,12 +430,36 @@ static const char* get_port_group_string(int port_group){
       return "port_group_other";
     case MT_PORT_GROUP_WEB:
       return "port_group_web";
-    case MT_PORT_GROUP_LOW:
-      return "port_group_low";
     case MT_PORT_GROUP_MULTIPLE:
       return "port_group_multiple";
+    case MT_PORT_GROUP_MAIL:
+      return "port_group_mail";
+    case MT_PORT_GROUP_FTP:
+      return "port_group_ftp";
+    case MT_PORT_GROUP_GITSVN:
+      return "port_group_gitsvn";
+    case MT_PORT_GROUP_CHAT:
+      return "port_group_chat";
+    case MT_PORT_GROUP_WHOIS:
+      return "port_group_whois";
+    case MT_PORT_GROUP_DNS:
+      return "port_group_dns";
+    case MT_PORT_GROUP_RSYNC:
+      return "port_group_rsync";
+    case MT_PORT_GROUP_NAS:
+      return "port_group_nas";
+    case MT_PORT_GROUP_TELNETS:
+      return "port_group_telnets";
+    case MT_PORT_GROUP_VPN:
+      return "port_group_vpn";
+    case MT_PORT_GROUP_IPSEC:
+      return "port_group_ipsec";
+    case MT_PORT_GROUP_PGPHKP:
+      return "port_group_pgphkp";
+    case MT_PORT_GROUP_MUMBLE:
+      return "port_group_mumble";
     default:
-      return NULL;
+      return "port_group_other";
   }
 }
 

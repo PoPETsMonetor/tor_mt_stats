@@ -804,12 +804,25 @@ typedef enum {
 #define MT_BUCKET_NUM 20
 
 /* Track one set of data for each of these port groups */
-#define MT_NUM_PORT_GROUPS 4
+#define MT_NUM_PORT_GROUPS 17
 // Starting at 0 can be dangerous 
 #define MT_PORT_GROUP_OTHER 1
 #define MT_PORT_GROUP_WEB 2
-#define MT_PORT_GROUP_LOW 3
-#define MT_PORT_GROUP_MULTIPLE 4
+#define MT_PORT_GROUP_MULTIPLE 3
+#define MT_PORT_GROUP_FTP 4
+#define MT_PORT_GROUP_MAIL 5
+#define MT_PORT_GROUP_GITSVN 6
+#define MT_PORT_GROUP_CHAT 7
+#define MT_PORT_GROUP_WHOIS 8
+#define MT_PORT_GROUP_DNS 9
+#define MT_PORT_GROUP_RSYNC 10
+#define MT_PORT_GROUP_NAS 11
+#define MT_PORT_GROUP_TELNETS 12
+#define MT_PORT_GROUP_VPN 13
+#define MT_PORT_GROUP_IPSEC 14
+#define MT_PORT_GROUP_PGPHKP 15
+#define MT_PORT_GROUP_ANDROIDM 16
+#define MT_PORT_GROUP_MUMBLE 17
 
 /* List of processed cell counts in each bucket of time MT_BUCKET_TIME */
 typedef struct {

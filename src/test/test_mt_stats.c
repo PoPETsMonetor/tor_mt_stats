@@ -210,10 +210,6 @@ static uint16_t rand_port(void){
   switch(group){
     case MT_PORT_GROUP_WEB:
       return rand() % 2 == 0 ? 80 : 443;
-    case MT_PORT_GROUP_LOW:
-      while(!(result != 0 && result != 80 && result != 443 && result < 1000))
-        result = rand();
-      return result;
     case MT_PORT_GROUP_OTHER:
       while(!(result >= 1000))
         result = rand();
