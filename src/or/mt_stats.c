@@ -285,7 +285,7 @@ void mt_stats_publish(void){
   int filename_size = strlen(directory) + strlen(group_string) + strlen(MAX_UINT_STRING) + 3;
   char filename[filename_size];
   memset(filename, '\0', filename_size);
-  sprintf(filename, "%s/%s_%d", directory, group_string, session_num[group]++);
+  sprintf(filename, "%s/%s_%d", directory, group_string, session_num[group-1]++);
 
   smartlist_t* total_counts_buckets = bucketize_total_counts(&data[group-1].total_counts);
   smartlist_t* time_stdevs_buckets = bucketize_time_stdevs(&data[group-1].time_stdevs);
