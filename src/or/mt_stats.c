@@ -120,7 +120,8 @@ void mt_stats_circ_port(circuit_t* circ, edge_connection_t* n_stream){
   connection_t* curr_stream = TO_CONN(n_stream);
   if (!stats->port_group) {
     stats->port_group = mt_port_group(curr_stream->port);
-    log_info(LD_GENERAL, "MT_STATS: giving port group %s", get_port_group_string(stats->port_group));
+    log_info(LD_GENERAL, "MT_STATS: giving port group %s at time %ld",
+        get_port_group_string(stats->port_group), stats->start_time);
   }
   else {
     if (stats->port_group != mt_port_group(curr_stream->port)) {
@@ -182,8 +183,8 @@ int mt_stats_circ_record(circuit_t* circ){
     return 0;
   }
 
-  log_info(LD_GENERAL, "MT_STATS: recording information for port group %s",
-      get_port_group_string(stats->port_group));
+  log_info(LD_GENERAL, "MT_STATS: recording information for port group %s. Elapsed time %ld",
+      get_port_group_string(stats->port_group), mt_time()-stats->start_time);
 
   // obtain global data for the right port group
   int group = stats->port_group;
