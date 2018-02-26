@@ -119,6 +119,7 @@ void mt_stats_circ_port(circuit_t* circ, edge_connection_t* n_stream){
   connection_t* curr_stream = TO_CONN(n_stream);
   if (!stats->port_group) {
     stats->port_group = mt_port_group(curr_stream->port);
+    log_info(LD_GENRAL, "MT_STATS: giving port group %s", get_port_group_string(stats->port_group));
   }
   else {
     if (stats->port_group != mt_port_group(curr_stream->port)) {
@@ -126,6 +127,7 @@ void mt_stats_circ_port(circuit_t* circ, edge_connection_t* n_stream){
       /** If we notice this circuit handle more than one group
        * port, we simply change its type to MT_PORT_GROUP_MULTIPLE */
       stats->port_group = MT_PORT_GROUP_MULTIPLE;
+      log_info(LD_GENRAL, "MT_STATS: moving port group to %s", get_port_group_string(stats->port_group));
     }
   }
 }
@@ -175,11 +177,14 @@ void mt_stats_circ_record(circuit_t* circ){
     return;
   }
 
+  log_info(LD_GENERAL, "MT_STATS: recording information for port group %s",
+      get_port_group_string(stats->port_group);
+
   // obtain global data for the right port group
   int group = stats->port_group;
 
   // if circuits exceeded this then something went wrong with dumping
-  tor_assert(data[group-1].num_circuits < MT_BUCKET_SIZE * MT_BUCKET_NUM);
+  tor_assert_nonfatal(data[group-1].num_circuits < MT_BUCKET_SIZE * MT_BUCKET_NUM);
 
   /*********************** Record Time Profiles ********************/
 
