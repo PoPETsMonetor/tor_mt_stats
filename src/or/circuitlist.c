@@ -1883,8 +1883,6 @@ circuit_mark_for_close_, (circuit_t *circ, int reason, int line,
     reason = END_CIRC_REASON_NONE;
   }
 
-  mt_stats_circ_record(circ);
-
   if (CIRCUIT_IS_ORIGIN(circ)) {
     if (pathbias_check_close(TO_ORIGIN_CIRCUIT(circ), reason) == -1) {
       /* Don't close it yet, we need to test it first */

@@ -165,8 +165,10 @@ void mt_stats_circ_increment(circuit_t* circ){
  */
 void mt_stats_circ_record(circuit_t* circ){
   // exit if the circuit is not marked for stat collection
-  if(CIRCUIT_IS_ORIGIN(circ) || !TO_OR_CIRCUIT(circ)->mt_stats.collecting)
+  if(CIRCUIT_IS_ORIGIN(circ) || !TO_OR_CIRCUIT(circ)->mt_stats.collecting) {
+    log_info(LD_GENERAL, "MT_STATS: no data collection for this circuit");
     return;
+  }
 
   mt_stats_t* stats = &TO_OR_CIRCUIT(circ)->mt_stats;
 
@@ -174,6 +176,8 @@ void mt_stats_circ_record(circuit_t* circ){
   if(!stats->port_group || !stats->total_count){
     stats->collecting = 0;
     smartlist_free(stats->time_profile);
+    log_info(LD_GENERAL, "MT_STATS: port group %s and total cell count: %d while closed",
+        get_port_group_string(stats->port_group), stats->total_count);
     return;
   }
 
