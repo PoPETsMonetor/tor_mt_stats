@@ -153,8 +153,13 @@ void mt_stats_circ_increment(circuit_t* circ){
   time_t time_diff = mt_time() - stats->start_time;
   int num_buckets = smartlist_len(stats->time_profile);
   int exp_buckets = time_diff / MT_BUCKET_TIME + 1;
-  for(int i = 0; i < exp_buckets - num_buckets; i++)
+  for(int i = 0; i < exp_buckets - num_buckets; i++) {
+    if (i == 0) {
+      log_info(LD_GENERAL, "time_diff: %ld, start_time: %ld",
+          time_diff, stats->start_time);
+    }
     smartlist_add(stats->time_profile, tor_calloc(1, sizeof(uint32_t)));
+  }
 
   // increment the cell count in the latest time bucket
   uint32_t* cur_bucket = smartlist_get(stats->time_profile, exp_buckets -1);
