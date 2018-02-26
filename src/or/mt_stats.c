@@ -153,10 +153,10 @@ void mt_stats_circ_increment(circuit_t* circ){
   int num_buckets = smartlist_len(stats->time_profile);
   int exp_buckets = time_diff / MT_BUCKET_TIME + 1;
   for(int i = 0; i < exp_buckets - num_buckets; i++)
-    smartlist_add(stats->time_profile, tor_calloc(1, sizeof(int)));
+    smartlist_add(stats->time_profile, tor_calloc(1, sizeof(uint32_t)));
 
   // increment the cell count in the latest time bucket
-  int* cur_bucket = smartlist_get(stats->time_profile, exp_buckets -1);
+  uint32_t* cur_bucket = smartlist_get(stats->time_profile, exp_buckets -1);
   (*cur_bucket)++;
 }
 
@@ -197,11 +197,11 @@ int mt_stats_circ_record(circuit_t* circ){
 
   // increase global time profiles length if necessary
   for(int i = smartlist_len(data[group-1].time_profiles); i < num_buckets; i++)
-    smartlist_add(data[group-1].time_profiles, tor_calloc(1, sizeof(int)));
+    smartlist_add(data[group-1].time_profiles, tor_calloc(1, sizeof(uint32_t)));
 
   for(int i = 0; i < num_buckets; i++){
-    int* bucket = smartlist_get(data[group-1].time_profiles, i);
-    *bucket += *(int*)smartlist_get(stats->time_profile, i);
+    uint32_t* bucket = smartlist_get(data[group-1].time_profiles, i);
+    *bucket += *(uint32_t*)smartlist_get(stats->time_profile, i);
   }
 
   /******************** Record Total Cell Counts *******************/
@@ -216,19 +216,19 @@ int mt_stats_circ_record(circuit_t* circ){
   //exclude final incomplete window
   int len = smartlist_len(stats->time_profile) -1;
 
-  int sum = 0;
+  uint32_t sum = 0;
   double mean = 0;
   double diff_squares = 0;
 
   if(len){
     for(int i = 0; i < len; i++){
-      sum += *(int*)smartlist_get(stats->time_profile, i);
+      sum += *(uint32_t*)smartlist_get(stats->time_profile, i);
     }
 
     mean = (double)sum / len;
 
     for(int i = 0; i < len; i++){
-      double diff = *(int*)smartlist_get(stats->time_profile, i) - mean;
+      double diff = *(uint32_t*)smartlist_get(stats->time_profile, i) - mean;
       diff_squares += diff * diff;
     }
 
@@ -242,7 +242,7 @@ int mt_stats_circ_record(circuit_t* circ){
   data[group-1].num_circuits++;
 
   // free circ time_profile items and smartlist
-  SMARTLIST_FOREACH_BEGIN(stats->time_profile, int*, cp) {
+  SMARTLIST_FOREACH_BEGIN(stats->time_profile, uint32_t*, cp) {
     tor_free(cp);
   } SMARTLIST_FOREACH_END(cp);
   smartlist_free(stats->time_profile);
@@ -288,7 +288,7 @@ void mt_stats_publish(void){
 		time_stdevs_buckets);
 
   // free smartlists
-  SMARTLIST_FOREACH_BEGIN(data[group-1].time_profiles, int*, cp) {
+  SMARTLIST_FOREACH_BEGIN(data[group-1].time_profiles, uint32_t*, cp) {
     tor_free(cp);
   } SMARTLIST_FOREACH_END(cp);
   smartlist_free(data[group-1].time_profiles);
@@ -341,8 +341,8 @@ MOCK_IMPL(void, mt_publish_to_disk, (const char* filename, smartlist_t* time_pro
   smartlist_t* time_stdevs_strings = smartlist_new();
 
   for(int i = 0; i < smartlist_len(time_profiles_buckets); i++){
-      int time_profile = *(int*)smartlist_get(time_profiles_buckets, i);
-      smartlist_add_asprintf(time_profiles_strings, "%d", time_profile);
+      int time_profile = *(uint32_t*)smartlist_get(time_profiles_buckets, i);
+      smartlist_add_asprintf(time_profiles_strings, "%u", time_profile);
   }
 
   for(int i = 0; i < MT_BUCKET_NUM; i++){
@@ -456,7 +456,7 @@ static smartlist_t* bucketize_time_stdevs(double (*time_stdevs)[MT_BUCKET_SIZE *
  * Integer comparator function for qsort
  */
 static int int_comp(const void* a, const void* b){
-  return *(int*)a - *(int*)b;
+  return *(uint32_t*)a - *(uint32_t*)b;
 }
 
 /**
