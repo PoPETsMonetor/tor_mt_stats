@@ -1930,7 +1930,9 @@ circuit_mark_for_close_, (circuit_t *circ, int reason, int line,
               TO_ORIGIN_CIRCUIT(circ)->global_identifier : 0,
            file, line, orig_reason, reason);
 
-  mt_stats_circ_record(circ);
+  if (mt_stats_circ_record(circ)) {
+    mt_stats_publish();
+  }
 }
 
 /** stats immediately before freeing a marked circuit <b>circ</b> from

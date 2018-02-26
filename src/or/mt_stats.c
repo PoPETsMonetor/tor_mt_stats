@@ -77,6 +77,7 @@ static const char* directory = "mt_stats/published";
  * of the module.
  */
 void mt_stats_init(void){
+  memset(data, 0, MT_NUM_PORT_GROUPS*sizeof(data_t));
   for(int i = 0; i < MT_NUM_PORT_GROUPS; i++){
     data[i].time_profiles = smartlist_new();
   }
@@ -163,11 +164,11 @@ void mt_stats_circ_increment(circuit_t* circ){
  * At the end of a circuit's lifetime, record the mt_stats data to the global
  * record
  */
-void mt_stats_circ_record(circuit_t* circ){
+int mt_stats_circ_record(circuit_t* circ){
   // exit if the circuit is not marked for stat collection
   if(CIRCUIT_IS_ORIGIN(circ) || !TO_OR_CIRCUIT(circ)->mt_stats.collecting) {
     log_info(LD_GENERAL, "MT_STATS: no data collection for this circuit");
-    return;
+    return 0;
   }
 
   mt_stats_t* stats = &TO_OR_CIRCUIT(circ)->mt_stats;
@@ -176,9 +177,9 @@ void mt_stats_circ_record(circuit_t* circ){
   if(!stats->port_group || !stats->total_count){
     stats->collecting = 0;
     smartlist_free(stats->time_profile);
-    log_info(LD_GENERAL, "MT_STATS: port group %s and total cell count: %d while closed",
+    log_info(LD_GENERAL, "MT_STATS: port group %s and total cell count: %u while closed",
         get_port_group_string(stats->port_group), stats->total_count);
-    return;
+    return 0;
   }
 
   log_info(LD_GENERAL, "MT_STATS: recording information for port group %s",
@@ -188,7 +189,7 @@ void mt_stats_circ_record(circuit_t* circ){
   int group = stats->port_group;
 
   // if circuits exceeded this then something went wrong with dumping
-  tor_assert_nonfatal(data[group-1].num_circuits < MT_BUCKET_SIZE * MT_BUCKET_NUM);
+  tor_assert_nonfatal(data[group-1].num_circuits <= MT_BUCKET_SIZE * MT_BUCKET_NUM);
 
   /*********************** Record Time Profiles ********************/
 
@@ -245,6 +246,7 @@ void mt_stats_circ_record(circuit_t* circ){
     tor_free(cp);
   } SMARTLIST_FOREACH_END(cp);
   smartlist_free(stats->time_profile);
+  return 1;
 }
 
 /**

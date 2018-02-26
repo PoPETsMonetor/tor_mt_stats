@@ -10,7 +10,7 @@ void mt_stats_init(void);
 void mt_stats_circ_create(circuit_t* circ);
 void mt_stats_circ_port(circuit_t* circ, edge_connection_t* n_stream);
 void mt_stats_circ_increment(circuit_t* circ);
-void mt_stats_circ_record(circuit_t* circ);
+int mt_stats_circ_record(circuit_t* circ);
 void mt_stats_publish(void);
 
 int mt_port_group(uint16_t port);
