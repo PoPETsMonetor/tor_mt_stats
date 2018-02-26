@@ -136,7 +136,8 @@ void mt_stats_circ_port(circuit_t* circ, edge_connection_t* n_stream){
 void mt_stats_circ_increment(circuit_t* circ){
 
   // exit if the circuit is not marked for stat collection
-  if(CIRCUIT_IS_ORIGIN(circ) || !TO_OR_CIRCUIT(circ)->mt_stats.collecting)
+  if(CIRCUIT_IS_ORIGIN(circ) || !TO_OR_CIRCUIT(circ)->mt_stats.collecting ||
+      !TO_OR_CIRCUIT(circ)->mt_stats.port_group)
     return;
 
   mt_stats_t* stats = &TO_OR_CIRCUIT(circ)->mt_stats;
@@ -255,6 +256,7 @@ void mt_stats_publish(void){
       group = i+1;
       break;
     }
+    log_info(LD_GENERAL, "Number of circuit: %d", data[i].num_circuits);
   }
 
   // if no port groups are ready to be dumped then exit

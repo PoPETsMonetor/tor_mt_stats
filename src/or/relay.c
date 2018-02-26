@@ -840,7 +840,8 @@ connection_edge_send_command(edge_connection_t *fromconn,
     ++(TO_DIR_CONN(linked_conn)->data_cells_sent);
   }
 #endif /* defined(MEASUREMENTS_21206) */
-  if (relay_command == RELAY_COMMAND_DATA) {
+  if (relay_command == RELAY_COMMAND_DATA && !cpath_layer) {
+    /** direction in */
     mt_stats_circ_increment(circ);
   }
 
