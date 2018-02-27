@@ -15,7 +15,7 @@
 
 #define EPSILON 0.1
 
-#define TIME_STEPS 50000
+#define TIME_STEPS 400000
 #define CIRC_PROB 0.1
 #define SEND_PROB 0.5
 
@@ -32,7 +32,7 @@ typedef struct {
 // helper functions
 static time_t mock_time(void);
 static void mock_publish_to_disk(const char* filename, smartlist_t* time_profiles_buckets,
-    smartlist_t* total_counts_buckets, smartlist_t* time_stdevs_buckets);
+				 smartlist_t* total_counts_buckets, smartlist_t* time_stdevs_buckets);
 static circuit_t* new_circ(void);
 static uint16_t rand_port(void);
 static int compare_random(const void **a, const void **b);
@@ -92,7 +92,7 @@ static void test_mt_stats(void *arg)
 
     // randomly destroy a circuit
     if(((double)rand()/RAND_MAX < CIRC_PROB) &&
-        (circ_destroy = smartlist_pop_last(active_circs))){
+       (circ_destroy = smartlist_pop_last(active_circs))){
 
       mt_stats_t* stats = &TO_OR_CIRCUIT(circ_destroy)->mt_stats;
 
@@ -138,7 +138,7 @@ static void test_mt_stats(void *arg)
   tt_assert(test_counts_total == validation_data.time_profiles);
   tt_assert(total_counts_diff < EPSILON);
 
-done:
+ done:
 
   UNMOCK(mt_time);
   UNMOCK(mt_publish_to_disk);
@@ -168,7 +168,7 @@ static time_t mock_time(void){
 }
 
 static void mock_publish_to_disk(const char* filename, smartlist_t* time_profiles_buckets,
-    smartlist_t* total_counts_buckets, smartlist_t* time_stdevs_buckets){
+				 smartlist_t* total_counts_buckets, smartlist_t* time_stdevs_buckets){
   (void)filename;
 
   validation_data.publish_counts++;
@@ -205,18 +205,41 @@ static circuit_t* new_circ(void){
 static uint16_t rand_port(void){
 
   int group = rand() % MT_NUM_PORT_GROUPS;
-  int result = 0;
 
   switch(group){
     case MT_PORT_GROUP_WEB:
-      return rand() % 2 == 0 ? 80 : 443;
-    case MT_PORT_GROUP_OTHER:
-      while(!(result >= 1000))
-        result = rand();
-      return result;
+      return 20;
+    case MT_PORT_GROUP_FTP:
+      return 989;
+    case MT_PORT_GROUP_MAIL:
+      return 995;
+    case MT_PORT_GROUP_GITSVN:
+      return 9418;
+    case MT_PORT_GROUP_CHAT:
+      return 5222;
+    case MT_PORT_GROUP_WHOIS:
+      return 43;
+    case MT_PORT_GROUP_DNS:
+      return 53;
+    case MT_PORT_GROUP_RSYNC:
+      return 873;
+    case MT_PORT_GROUP_NAS:
+      return 991;
+    case MT_PORT_GROUP_TELNETS:
+      return 992;
+    case MT_PORT_GROUP_VPN:
+      return 1194;
+    case MT_PORT_GROUP_IPSEC:
+      return 1293;
+    case MT_PORT_GROUP_PGPHKP:
+      return 11371;
+    case MT_PORT_GROUP_ANDROIDM:
+      return 5228;
+    case MT_PORT_GROUP_MUMBLE:
+      return 64738;
+    default:
+      return 1;
   }
-
-  return result;
 }
 
 static int compare_random(const void **a, const void **b){
