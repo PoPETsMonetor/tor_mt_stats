@@ -42,6 +42,7 @@
 #include "container.h"
 #include "config.h"
 #include "mt_stats.h"
+#include <errno.h>
 
 #pragma GCC diagnostic ignored "-Wstack-protector"
 
@@ -394,10 +395,15 @@ MOCK_IMPL(void, mt_publish_to_disk, (const char* filename, smartlist_t* time_pro
   char* time_stdevs_string = smartlist_join_strings(time_stdevs_strings, ", ", 0, NULL);
 
   FILE* fp = fopen(filename, "w");
-  fprintf(fp, "%s\n", time_profiles_string);
-  fprintf(fp, "%s\n", total_counts_string);
-  fprintf(fp, "%s\n", time_stdevs_string);
-  fclose(fp);
+  if (fp) {
+    fprintf(fp, "%s\n", time_profiles_string);
+    fprintf(fp, "%s\n", total_counts_string);
+    fprintf(fp, "%s\n", time_stdevs_string);
+    fclose(fp);
+  }
+  else {
+    log_warn(LD_GENERAL, "fopen failed: %s", strerror(errno));
+  }
 
   SMARTLIST_FOREACH_BEGIN(time_profiles_strings, char*, cp) {
     tor_free(cp);
