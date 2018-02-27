@@ -801,7 +801,7 @@ typedef enum {
 
 /* Define data granularity for total cell count and time profile stdev */
 #define MT_BUCKET_SIZE 20
-#define MT_BUCKET_NUM 20
+#define MT_BUCKET_NUM 40
 
 /* Track one set of data for each of these port groups */
 #define MT_NUM_PORT_GROUPS 17
