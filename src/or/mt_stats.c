@@ -53,17 +53,17 @@
  * entry_t struct
  */
 typedef struct {
-  int num_circuits;
+  uint32_t num_circuits;
   smartlist_t* time_profiles;
-  int total_counts[MT_BUCKET_SIZE * MT_BUCKET_NUM];
+  uint32_t total_counts[MT_BUCKET_SIZE * MT_BUCKET_NUM];
   double time_stdevs[MT_BUCKET_SIZE * MT_BUCKET_NUM];
 } data_t;
 
 // helper functions
 static const char* get_port_group_string(int port_group);
-static smartlist_t* bucketize_total_counts(int (*total_counts)[MT_BUCKET_SIZE * MT_BUCKET_NUM]);
+static smartlist_t* bucketize_total_counts(uint32_t (*total_counts)[MT_BUCKET_SIZE * MT_BUCKET_NUM]);
 static smartlist_t* bucketize_time_stdevs(double (*time_stdevs)[MT_BUCKET_SIZE * MT_BUCKET_NUM]);
-static int int_comp(const void* a, const void* b);
+static int uint32_t_comp(const void* a, const void* b);
 static int double_comp(const void* a, const void* b);
 
 // global data that will eventually be dumped to disk
@@ -288,6 +288,17 @@ void mt_stats_publish(void){
   memset(filename, '\0', filename_size);
   sprintf(filename, "%s/%s_%d", directory, group_string, session_num[group-1]++);
 
+  // filter all but the highest traffic circuits to calculate stdevs
+  uint32_t sorted_counts[MT_BUCKET_SIZE * MT_BUCKET_NUM];
+  memcpy(sorted_counts, data[group-1].total_counts, sizeof(sorted_counts));
+  qsort(sorted_counts, MT_BUCKET_SIZE * MT_BUCKET_NUM, sizeof(uint32_t), uint32_t_comp);
+  uint32_t threshold = sorted_counts[MT_BUCKET_SIZE * (MT_BUCKET_NUM - MT_BUCKET_NUM_STDEV) - 1];
+  printf("threshold %d\n", threshold);
+  for(int i = 0; i < MT_BUCKET_SIZE * MT_BUCKET_NUM; i++){
+    if(data[group-1].total_counts[i] < threshold)
+      data[group-1].time_stdevs[i] = -2.0;
+  }
+
   smartlist_t* total_counts_buckets = bucketize_total_counts(&data[group-1].total_counts);
   smartlist_t* time_stdevs_buckets = bucketize_time_stdevs(&data[group-1].time_stdevs);
 
@@ -377,8 +388,8 @@ MOCK_IMPL(void, mt_publish_to_disk, (const char* filename, smartlist_t* time_pro
   smartlist_t* time_stdevs_strings = smartlist_new();
 
   for(int i = 0; i < smartlist_len(time_profiles_buckets); i++){
-      int time_profile = *(uint32_t*)smartlist_get(time_profiles_buckets, i);
-      smartlist_add_asprintf(time_profiles_strings, "%u", time_profile);
+    uint32_t time_profile = *(uint32_t*)smartlist_get(time_profiles_buckets, i);
+    smartlist_add_asprintf(time_profiles_strings, "%u", time_profile);
   }
 
   for(int i = 0; i < MT_BUCKET_NUM; i++){
@@ -475,9 +486,9 @@ static const char* get_port_group_string(int port_group){
  * MT_BUCKET_NUM number sets of MT_BUCKET_SIZE number of elements. The returned
  * valuesare the mean of each bucket
  */
-static smartlist_t* bucketize_total_counts(int (*total_counts)[MT_BUCKET_SIZE * MT_BUCKET_NUM]){
+static smartlist_t* bucketize_total_counts(uint32_t (*total_counts)[MT_BUCKET_SIZE * MT_BUCKET_NUM]){
 
-  qsort(*total_counts, MT_BUCKET_SIZE * MT_BUCKET_NUM, sizeof(int), int_comp);
+  qsort(*total_counts, MT_BUCKET_SIZE * MT_BUCKET_NUM, sizeof(uint32_t), uint32_t_comp);
   smartlist_t* result = smartlist_new();
 
   for(int i = 0; i < MT_BUCKET_NUM; i++){
@@ -520,8 +531,13 @@ static smartlist_t* bucketize_time_stdevs(double (*time_stdevs)[MT_BUCKET_SIZE *
 /**
  * Integer comparator function for qsort
  */
-static int int_comp(const void* a, const void* b){
-  return *(uint32_t*)a - *(uint32_t*)b;
+static int uint32_t_comp(const void* a, const void* b){
+  if(*(uint32_t*)a > *(uint32_t*)b)
+    return 1;
+  if(*(uint32_t*)a < *(uint32_t*)b)
+    return -1;
+  return 0;
+
 }
 
 /**
