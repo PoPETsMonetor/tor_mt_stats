@@ -48,3 +48,9 @@ in mt_stats/
 At a separate central server, schedule a cron job (hourly is recommended) for
 mt_stats/scripts/central.sh. The outputed information will be continously
 updated for each port within the mt_stats/aggregate/ folder.
+
+
+--- Code ---
+
+You will find most of the code within src/or/mt_stats.{c,h}. Everything is
+commented, and those functions are called in various places of Tor's codebase.
