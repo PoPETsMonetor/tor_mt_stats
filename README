@@ -49,6 +49,9 @@ At a separate central server, schedule a cron job (hourly is recommended) for
 mt_stats/scripts/central.sh. The outputed information will be continously
 updated for each port within the mt_stats/aggregate/ folder.
 
+Once you have gathered all measurements, and aggregated them, you will find
+plot scrits to play reproduce the paper results.
+
 
 --- Code ---
 
