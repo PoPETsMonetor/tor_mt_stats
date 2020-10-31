@@ -37,6 +37,12 @@ within the Tor executable. Results from a single node/window are published to
 mt_stats/published. Periodically, a central server elsewhere aggregate the
 published statistics from all recording nodes and delete the local copies.
 
+The main objective of this data collection was to establish the relevance of
+having a high fairness payment rate. If you re-do the data collection, you
+should observe that most active circuits handled by a Tor exit are bursty and
+short-lived, which shows the importance of having a payment layer ready as soon
+as the circuit is used, and which offer high granularity.
+
 --- Instructions ---
 
 Compile this Tor version, use and set the torrc MoneTorStatistics field. MoneTorStatistics is
